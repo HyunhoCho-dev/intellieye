@@ -9,13 +9,13 @@ import subprocess
 import sys
 import urllib.request
 
-# Python 버전 경고 (3.13+ 는 일부 torch/transformers 빌드와 호환되지 않을 수 있음)
+# Python 버전 호환성 안내 (3.13+ 는 실험적 지원)
 if sys.version_info >= (3, 13):
     print(
-        f"⚠️  경고: Python {sys.version_info.major}.{sys.version_info.minor}이(가) 감지되었습니다.\n"
-        "   IntelliEye는 Python 3.10~3.12에서 가장 안정적으로 동작합니다.\n"
-        "   현재 버전에서 오류가 발생하면 Python 3.11 또는 3.12로 재설치하세요.\n"
-        "   참고: https://www.python.org/downloads/\n"
+        f"ℹ️  Python {sys.version_info.major}.{sys.version_info.minor}이(가) 감지되었습니다.\n"
+        "   IntelliEye는 Python 3.10 이상을 지원합니다 (3.13+ 는 실험적 지원).\n"
+        "   일부 torch/transformers 빌드가 아직 이 버전을 지원하지 않을 수 있으니\n"
+        "   문제가 발생하면 'pip install -U torch transformers accelerate' 를 시도하세요.\n"
     )
 
 from controller import execute_action
@@ -205,7 +205,8 @@ def main() -> None:
                 "        $env:INTELLIEYE_DEVICE='cpu'; $env:INTELLIEYE_SAFE_LOAD='1'; python intellieye.py\n\n"
                 "   3) torch/transformers 최신 버전으로 업데이트:\n"
                 "        pip install -U torch transformers\n\n"
-                f"   4) Python 3.11 또는 3.12 사용 권장 (현재: Python {sys.version_info.major}.{sys.version_info.minor})\n"
+                f"   4) 패키지 최신 버전으로 업데이트 (현재: Python {sys.version_info.major}.{sys.version_info.minor})\n"
+                "        pip install -U torch transformers accelerate\n"
             )
             sys.exit(1)
         raise

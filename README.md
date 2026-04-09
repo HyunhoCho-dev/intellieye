@@ -83,14 +83,15 @@ IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수
 | 항목 | 최소 사양 | 권장 사양 |
 |------|---------|---------|
 | **OS** | Windows 10 이상 | Windows 11 |
-| **Python** | 3.10 이상 | 3.11 / 3.12 (**3.13+ 비권장**) |
+| **Python** | 3.10 이상 | 3.11 / 3.12 (3.13 / 3.14 실험적 지원) |
 | **RAM** | 8 GB | 16 GB |
 | **GPU VRAM** | 4 GB (E2B) | 6 GB (E4B) |
 | **저장 공간** | 10 GB | 20 GB |
 | **인터넷** | 최초 모델 다운로드 필요 | — |
 
-> ⚠️ **Python 3.13 이상**은 일부 `torch` / `transformers` 빌드와 호환되지 않을 수 있습니다.  
-> 문제가 발생하면 **Python 3.11 또는 3.12** 사용을 권장합니다.
+> ℹ️ **Python 3.13 / 3.14** 는 실험적으로 지원됩니다.  
+> 일부 `torch` / `transformers` 빌드가 아직 최신 Python을 지원하지 않을 수 있으니,  
+> 문제가 발생하면 `pip install -U torch transformers accelerate` 를 먼저 시도하세요.
 
 ---
 
@@ -176,11 +177,11 @@ pip install -U torch transformers accelerate
 
 **해결 방법 4 — Python 버전 확인**
 
-Python 3.13+는 일부 `torch` 빌드와 호환되지 않을 수 있습니다.  
-**Python 3.11 또는 3.12** 사용을 권장합니다.
+Python 3.13/3.14+는 실험적으로 지원됩니다.  
+문제가 발생하면 아래 명령으로 패키지를 최신 버전으로 업데이트하세요.
 
 ```powershell
-python --version  # Python 3.11.x 또는 3.12.x 권장
+pip install -U torch transformers accelerate
 ```
 
 ---
