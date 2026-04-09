@@ -205,8 +205,7 @@ def main() -> None:
                 "        $env:INTELLIEYE_DEVICE='cpu'; $env:INTELLIEYE_SAFE_LOAD='1'; python intellieye.py\n\n"
                 "   3) torch/transformers 최신 버전으로 업데이트:\n"
                 "        pip install -U torch transformers\n\n"
-                "   4) Python 3.11 또는 3.12 사용 권장 (현재: "
-                f"Python {sys.version_info.major}.{sys.version_info.minor})\n"
+                f"   4) Python 3.11 또는 3.12 사용 권장 (현재: Python {sys.version_info.major}.{sys.version_info.minor})\n"
             )
             sys.exit(1)
         raise

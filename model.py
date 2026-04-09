@@ -100,11 +100,10 @@ def _load_model(model_id: str, device: str, safe_load: bool):
 
     # CPU / MPS 또는 safe_load 모드: meta 텐서를 방지하기 위해
     # device_map=None, low_cpu_mem_usage=False, float32 사용
-    dtype = torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         device_map=None,
-        torch_dtype=dtype,
+        torch_dtype=torch.float32,
         low_cpu_mem_usage=False,
     )
     model = model.to(device)
@@ -140,7 +139,8 @@ class GemmaAgent:
             print(
                 "  ⚠️  meta 텐서가 감지되었습니다. 안전 로드 모드로 재시도합니다..."
             )
-            self.model = _load_model(model_id, "cpu", safe_load=True)
+            device = "cpu"
+            self.model = _load_model(model_id, device, safe_load=True)
 
         # generation_config에 패드/EOS 토큰 ID 설정
         eos_id = self.processor.tokenizer.eos_token_id
