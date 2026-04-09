@@ -4,7 +4,7 @@
 
 **Made by Hyunho Cho**
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://www.python.org/)
+[![Python 3.10~3.12](https://img.shields.io/badge/Python-3.10~3.12-blue?logo=python)](https://www.python.org/downloads/release/python-3121/)
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma%204-orange?logo=google)](https://deepmind.google/models/gemma/gemma-4/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
@@ -83,15 +83,15 @@ IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수
 | 항목 | 최소 사양 | 권장 사양 |
 |------|---------|---------|
 | **OS** | Windows 10 이상 | Windows 11 |
-| **Python** | 3.10 이상 | 3.11 / 3.12 (3.13 / 3.14 실험적 지원) |
+| **Python** | 3.10 이상 | **3.11 또는 3.12** (3.13 부분 지원, **3.14+ 미지원**) |
 | **RAM** | 8 GB | 16 GB |
 | **GPU VRAM** | 4 GB (E2B) | 6 GB (E4B) |
 | **저장 공간** | 10 GB | 20 GB |
 | **인터넷** | 최초 모델 다운로드 필요 | — |
 
-> ℹ️ **Python 3.13 / 3.14** 는 실험적으로 지원됩니다.  
-> 일부 `torch` / `transformers` 빌드가 아직 최신 Python을 지원하지 않을 수 있으니,  
-> 문제가 발생하면 `pip install -U torch transformers accelerate` 를 먼저 시도하세요.
+> ⚠️ **Python 3.10~3.12 필수**: PyTorch(torch)는 Python 3.13에서 부분 지원, **Python 3.14 이상은 미지원**입니다.  
+> Python 3.14에서 설치 스크립트 실행 시 torch 단계에서 멈추거나 실패합니다.  
+> [Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/) 후 재시도하세요.
 
 ---
 
@@ -149,6 +149,36 @@ intellieye/
 
 ## 🩺 문제 해결 (Troubleshooting)
 
+### ⏳ `torch 설치 중...` 단계에서 멈춤 (Python 3.14 사용 시)
+
+**증상**: `install.ps1` 실행 시 `torch / torchvision / torchaudio 설치 중...` 에서 수분 이상 아무 진행이 없음.
+
+**원인**: PyTorch는 **Python 3.14 이상에 대한 사전 빌드(wheel) 패키지를 제공하지 않습니다**.  
+wheel이 없으면 pip가 소스에서 빌드를 시도하거나 오랜 시간 검색하다 실패합니다.
+
+**해결 방법**:
+
+1. **Python 3.12 설치 (권장)**
+   ```
+   https://www.python.org/downloads/release/python-3121/
+   ```
+   - 설치 시 "Add Python to PATH" 체크
+   - PowerShell 재시작 후 `install.ps1` 다시 실행
+
+2. **이미 Python 3.12가 있는 경우 (`py` 런처 사용)**
+   ```powershell
+   py -3.12 --version        # 3.12 확인
+   py -3.12 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+   ```
+
+3. **현재 Python 버전 확인**
+   ```powershell
+   python --version
+   py --list
+   ```
+
+---
+
 ### ❌ `RuntimeError: Tensor.item() cannot be called on meta tensors`
 
 이 오류는 CPU 전용 환경(GPU 없음)에서 `device_map="auto"` 사용 시 모델 가중치가 meta 디바이스에 남아있을 때 발생합니다.
@@ -177,11 +207,11 @@ pip install -U torch transformers accelerate
 
 **해결 방법 4 — Python 버전 확인**
 
-Python 3.13/3.14+는 실험적으로 지원됩니다.  
-문제가 발생하면 아래 명령으로 패키지를 최신 버전으로 업데이트하세요.
+Python 3.14+는 현재 지원되지 않습니다. Python 3.13에서는 torch 설치가 실패하거나 오래 걸릴 수 있습니다.  
+**Python 3.10~3.12 사용을 권장합니다.** [Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/)
 
 ```powershell
-pip install -U torch transformers accelerate
+python --version
 ```
 
 ---
@@ -215,15 +245,23 @@ python intellieye.py doctor
 
 ## 🔧 수동 설치
 
+> **주의**: Python 3.10~3.12 를 사용하세요. Python 3.14+는 torch wheel이 없어 설치가 실패합니다.
+
 ```powershell
 # 1. 저장소 클론
 git clone https://github.com/HyunhoCho-dev/intellieye.git
 cd intellieye
 
-# 2. 패키지 설치
-pip install -r requirements.txt
+# 2. pip 업그레이드
+pip install --upgrade pip
 
-# 3. 실행
+# 3. torch 먼저 설치 (CPU 전용)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir
+
+# 4. 나머지 패키지 설치
+pip install -r requirements.txt --no-cache-dir --timeout 120
+
+# 5. 실행
 python intellieye.py
 ```
 
