@@ -83,11 +83,14 @@ IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수
 | 항목 | 최소 사양 | 권장 사양 |
 |------|---------|---------|
 | **OS** | Windows 10 이상 | Windows 11 |
-| **Python** | 3.10 이상 | 3.11 이상 |
+| **Python** | 3.10 이상 | 3.11 / 3.12 (**3.13+ 비권장**) |
 | **RAM** | 8 GB | 16 GB |
 | **GPU VRAM** | 4 GB (E2B) | 6 GB (E4B) |
 | **저장 공간** | 10 GB | 20 GB |
 | **인터넷** | 최초 모델 다운로드 필요 | — |
+
+> ⚠️ **Python 3.13 이상**은 일부 `torch` / `transformers` 빌드와 호환되지 않을 수 있습니다.  
+> 문제가 발생하면 **Python 3.11 또는 3.12** 사용을 권장합니다.
 
 ---
 
@@ -139,6 +142,72 @@ intellieye/
 ├── controller.py      # 마우스/키보드 제어
 ├── requirements.txt   # Python 패키지 목록
 └── README.md
+```
+
+---
+
+## 🩺 문제 해결 (Troubleshooting)
+
+### ❌ `RuntimeError: Tensor.item() cannot be called on meta tensors`
+
+이 오류는 CPU 전용 환경(GPU 없음)에서 `device_map="auto"` 사용 시 모델 가중치가 meta 디바이스에 남아있을 때 발생합니다.
+
+**해결 방법 1 — 안전 로드 모드 활성화 (권장)**
+
+```powershell
+# Windows PowerShell
+$env:INTELLIEYE_SAFE_LOAD='1'
+python intellieye.py
+```
+
+**해결 방법 2 — CPU 전용 모드 강제**
+
+```powershell
+$env:INTELLIEYE_DEVICE='cpu'
+$env:INTELLIEYE_SAFE_LOAD='1'
+python intellieye.py
+```
+
+**해결 방법 3 — 패키지 최신 버전 업데이트**
+
+```powershell
+pip install -U torch transformers accelerate
+```
+
+**해결 방법 4 — Python 버전 확인**
+
+Python 3.13+는 일부 `torch` 빌드와 호환되지 않을 수 있습니다.  
+**Python 3.11 또는 3.12** 사용을 권장합니다.
+
+```powershell
+python --version  # Python 3.11.x 또는 3.12.x 권장
+```
+
+---
+
+### 🩺 환경 진단 (doctor 명령)
+
+`doctor` 명령으로 환경 정보를 확인할 수 있습니다.
+
+```powershell
+# CLI 인수로 실행
+python intellieye.py doctor
+
+# 또는 실행 중 입력
+사용자 > doctor
+```
+
+출력 예시:
+
+```
+[IntelliEye] doctor — 환경 정보
+  Python         : 3.11.9 (main, ...)
+  torch          : 2.5.1
+  transformers   : 4.48.0
+  accelerate     : 1.2.0
+  CUDA 사용 가능 : False
+  INTELLIEYE_DEVICE    : (미설정)
+  INTELLIEYE_SAFE_LOAD : (미설정)
 ```
 
 ---
