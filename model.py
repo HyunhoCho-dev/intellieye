@@ -6,8 +6,32 @@ Made by Hyunho Cho
 
 import json
 import re
+import subprocess
+import sys
 
 from PIL import Image
+
+# torchvision 임포트 확인 — 없으면 자동 설치 시도
+try:
+    import torchvision  # noqa: F401
+except ImportError:
+    print("[IntelliEye] torchvision이 설치되어 있지 않습니다. 자동으로 설치를 시도합니다...")
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "torchvision", "-q"]
+        )
+        import torchvision  # noqa: F401
+        print("[IntelliEye] torchvision 설치 완료!")
+    except Exception as e:
+        print(
+            f"[IntelliEye] torchvision 자동 설치 실패: {e}\n"
+            "수동으로 설치해 주세요:\n"
+            "  pip install torchvision\n"
+            "또는:\n"
+            "  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu"
+        )
+        sys.exit(1)
+
 from transformers import AutoModelForCausalLM, AutoProcessor
 
 MODEL_IDS = {
@@ -42,7 +66,7 @@ class GemmaAgent:
         print(f"  모델 로딩 중: {model_id}")
         print("  (처음 실행 시 모델 다운로드에 시간이 걸릴 수 있습니다...)")
 
-        self.processor = AutoProcessor.from_pretrained(model_id)
+        self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_id,
             device_map="auto",
