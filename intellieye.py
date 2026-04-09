@@ -9,6 +9,15 @@ import subprocess
 import sys
 import urllib.request
 
+# Python 버전 경고 (3.13+ 는 일부 torch/transformers 빌드와 호환되지 않을 수 있음)
+if sys.version_info >= (3, 13):
+    print(
+        f"⚠️  경고: Python {sys.version_info.major}.{sys.version_info.minor}이(가) 감지되었습니다.\n"
+        "   IntelliEye는 Python 3.10~3.12에서 가장 안정적으로 동작합니다.\n"
+        "   현재 버전에서 오류가 발생하면 Python 3.11 또는 3.12로 재설치하세요.\n"
+        "   참고: https://www.python.org/downloads/\n"
+    )
+
 from controller import execute_action
 from model import GemmaAgent
 from screen_capture import capture_screen, image_to_base64
@@ -137,19 +146,77 @@ def analyze_screen(agent: GemmaAgent) -> None:
     print(f"  [IntelliEye] 화면 분석: {action.get('description', '')}\n")
 
 
+def doctor() -> None:
+    """Python, torch, transformers 버전과 CUDA 가용성, 모델 파라미터 디바이스를 출력합니다."""
+    import importlib
+
+    print("\n[IntelliEye] doctor — 환경 정보")
+    print(f"  Python    : {sys.version}")
+    for pkg in ("torch", "transformers", "accelerate"):
+        try:
+            mod = importlib.import_module(pkg)
+            print(f"  {pkg:<15}: {mod.__version__}")
+        except ImportError:
+            print(f"  {pkg:<15}: 설치되지 않음")
+
+    try:
+        import torch
+        cuda_ok = torch.cuda.is_available()
+        print(f"  CUDA 사용 가능: {cuda_ok}")
+        if cuda_ok:
+            print(f"  CUDA 장치    : {torch.cuda.get_device_name(0)}")
+        if hasattr(torch.backends, "mps"):
+            print(f"  MPS 사용 가능 : {torch.backends.mps.is_available()}")
+    except ImportError:
+        print("  torch가 설치되어 있지 않아 CUDA 정보를 확인할 수 없습니다.")
+
+    env_device = os.environ.get("INTELLIEYE_DEVICE", "(미설정)")
+    env_safe = os.environ.get("INTELLIEYE_SAFE_LOAD", "(미설정)")
+    print(f"  INTELLIEYE_DEVICE    : {env_device}")
+    print(f"  INTELLIEYE_SAFE_LOAD : {env_safe}")
+    print()
+
+
 def main() -> None:
-    # --update 인수 처리
-    if len(sys.argv) > 1 and sys.argv[1] == "--update":
-        update()
+    # --update / --doctor 인수 처리
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--update":
+            update()
+        elif sys.argv[1] in ("doctor", "--doctor"):
+            doctor()
+            sys.exit(0)
 
     print(BANNER)
 
-    agent = select_model()
+    try:
+        agent = select_model()
+    except RuntimeError as exc:
+        if "meta" in str(exc).lower():
+            print(
+                "\n❌ 오류: meta 텐서 관련 RuntimeError가 발생했습니다.\n"
+                f"   원인: {exc}\n\n"
+                "   해결 방법:\n"
+                "   1) 안전 로드 모드 사용 (meta 텐서 방지):\n"
+                "        Windows PowerShell:\n"
+                "          $env:INTELLIEYE_SAFE_LOAD='1'; python intellieye.py\n"
+                "        CMD:\n"
+                "          set INTELLIEYE_SAFE_LOAD=1 && python intellieye.py\n\n"
+                "   2) CPU 전용 모드 강제:\n"
+                "        $env:INTELLIEYE_DEVICE='cpu'; $env:INTELLIEYE_SAFE_LOAD='1'; python intellieye.py\n\n"
+                "   3) torch/transformers 최신 버전으로 업데이트:\n"
+                "        pip install -U torch transformers\n\n"
+                "   4) Python 3.11 또는 3.12 사용 권장 (현재: "
+                f"Python {sys.version_info.major}.{sys.version_info.minor})\n"
+            )
+            sys.exit(1)
+        raise
+
     print("\n  IntelliEye 준비 완료! 명령을 입력하세요.")
     print("  특수 명령: '종료' 또는 'exit' — 프로그램 종료")
     print("             '상태'            — 현재 화면 분석")
     print("             '모델변경'         — 모델 다시 선택")
-    print("             'update'          — 최신 버전으로 업데이트\n")
+    print("             'update'          — 최신 버전으로 업데이트")
+    print("             'doctor'          — 환경 정보 출력\n")
 
     while True:
         try:
@@ -168,17 +235,38 @@ def main() -> None:
         elif user_input.strip().lower() == "update":
             update()
 
+        elif user_input.strip().lower() == "doctor":
+            doctor()
+
         elif user_input == "상태":
             analyze_screen(agent)
 
         elif user_input == "모델변경":
             print()
-            agent = select_model()
+            try:
+                agent = select_model()
+            except RuntimeError as exc:
+                if "meta" in str(exc).lower():
+                    print(
+                        f"\n❌ 모델 로딩 오류 (meta 텐서): {exc}\n"
+                        "   INTELLIEYE_SAFE_LOAD=1 환경 변수를 설정하고 다시 시도하세요.\n"
+                    )
+                    continue
+                raise
             print("  모델이 변경되었습니다.\n")
 
         else:
             # 자연어 목표 → 에이전트 루프 실행
-            run_agent_loop(agent, user_input)
+            try:
+                run_agent_loop(agent, user_input)
+            except RuntimeError as exc:
+                if "meta" in str(exc).lower():
+                    print(
+                        f"\n❌ 추론 중 meta 텐서 오류: {exc}\n"
+                        "   INTELLIEYE_SAFE_LOAD=1 환경 변수를 설정하고 intellieye를 재시작하세요.\n"
+                    )
+                else:
+                    raise
 
 
 if __name__ == "__main__":
