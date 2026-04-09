@@ -18,6 +18,12 @@ foreach ($cmd in @("python", "python3", "py")) {
             $minor = [int]$Matches[2]
             if ($major -gt 3 -or ($major -eq 3 -and $minor -ge 10)) {
                 $pythonCmd = $cmd
+                if ($major -eq 3 -and $minor -ge 14) {
+                    Write-Host "[경고] Python $major.$minor 이 감지되었습니다." -ForegroundColor Yellow
+                    Write-Host "  IntelliEye는 Python 3.10~3.12 환경을 권장합니다." -ForegroundColor Yellow
+                    Write-Host "  일부 패키지가 정상적으로 설치되지 않을 수 있습니다." -ForegroundColor Yellow
+                    Write-Host ""
+                }
                 break
             }
         }
@@ -36,6 +42,10 @@ if (-not $pythonCmd) {
 }
 
 Write-Host "[OK] Python 확인: $($ver)" -ForegroundColor Green
+
+# ── HF_HUB_DISABLE_SYMLINKS_WARNING 환경변수 설정 ─────────────────────────────
+$env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
+[System.Environment]::SetEnvironmentVariable("HF_HUB_DISABLE_SYMLINKS_WARNING", "1", "User")
 
 # ── 2. 설치 디렉토리 생성 ─────────────────────────────────────────────────────
 $installDir = Join-Path $HOME "intellieye"
@@ -72,6 +82,15 @@ Write-Host "[OK] 파일 다운로드 완료" -ForegroundColor Green
 # ── 4. pip install ────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "패키지를 설치합니다 (시간이 걸릴 수 있습니다)..." -ForegroundColor Cyan
+
+# torch + torchvision + torchaudio 먼저 설치 (CPU 버전)
+Write-Host "  torch / torchvision / torchaudio 설치 중..."
+& $pythonCmd -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[오류] torch 설치에 실패했습니다." -ForegroundColor Red
+    exit 1
+}
+
 $reqFile = Join-Path $installDir "requirements.txt"
 & $pythonCmd -m pip install -r $reqFile
 if ($LASTEXITCODE -ne 0) {
@@ -86,18 +105,44 @@ $mainPy    = Join-Path $installDir "intellieye.py"
 Set-Content -Path $runScript -Value "python `"$mainPy`""
 Write-Host "[OK] 런처 생성: $runScript" -ForegroundColor Green
 
-# ── 6. 완료 메시지 ────────────────────────────────────────────────────────────
+# ── 6. PowerShell Profile에 intellieye 함수 등록 ──────────────────────────────
+$profileContent = @"
+
+# IntelliEye Agent
+function intellieye {
+    param([string]`$Command)
+    `$pythonPath = (Get-Command python -ErrorAction SilentlyContinue).Source
+    if (-not `$pythonPath) { Write-Host "Python을 찾을 수 없습니다." -ForegroundColor Red; return }
+    if (`$Command -eq "update") {
+        & `$pythonPath "$HOME\intellieye\intellieye.py" --update
+    } else {
+        & `$pythonPath "$HOME\intellieye\intellieye.py" `$Command
+    }
+}
+"@
+
+# Profile 파일이 없으면 생성
+if (-not (Test-Path $PROFILE)) {
+    New-Item -Path $PROFILE -ItemType File -Force | Out-Null
+}
+
+# 중복 추가 방지
+if (-not (Select-String -Path $PROFILE -Pattern "IntelliEye Agent" -Quiet)) {
+    Add-Content -Path $PROFILE -Value $profileContent
+}
+
+Write-Host "[OK] 'intellieye' 명령어가 PowerShell Profile에 등록되었습니다!" -ForegroundColor Green
+
+# ── 7. 완료 메시지 ────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "========================================"
-Write-Host "  IntelliEye 설치 완료!" -ForegroundColor Green
+Write-Host "  ✅ IntelliEye 설치 완료!" -ForegroundColor Green
 Write-Host "========================================"
 Write-Host ""
-Write-Host "실행 방법:"
+Write-Host "사용법:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  powershell `"$runScript`"" -ForegroundColor Yellow
+Write-Host "  intellieye          → 에이전트 시작" -ForegroundColor Yellow
+Write-Host "  intellieye update   → 최신 버전으로 업데이트" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "또는 PowerShell에서:"
-Write-Host ""
-Write-Host "  cd `"$installDir`"" -ForegroundColor Yellow
-Write-Host "  python intellieye.py" -ForegroundColor Yellow
+Write-Host "※ 새 PowerShell 창을 열어야 명령어가 활성화됩니다." -ForegroundColor Cyan
 Write-Host ""

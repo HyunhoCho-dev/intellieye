@@ -1,4 +1,6 @@
 torch
+torchvision
+torchaudio
 transformers>=4.40.0
 accelerate
 Pillow
@@ -6,3 +8,4 @@ mss
 pyautogui
 pyperclip
 opencv-python
+huggingface_hub

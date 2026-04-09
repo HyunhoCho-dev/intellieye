@@ -4,7 +4,10 @@ AI가 화면을 실시간으로 보면서 노트북을 제어하는 에이전트
 Made by Hyunho Cho
 """
 
+import os
+import subprocess
 import sys
+import urllib.request
 
 from controller import execute_action
 from model import GemmaAgent
@@ -21,6 +24,51 @@ MODEL_MENU = """모델을 선택하세요:
   [1] Gemma 4 E4B (4.5B) - 권장: 노트북/PC
   [2] Gemma 4 E2B (2.3B) - 경량: 저사양/빠른속도
 선택 (1 또는 2): """
+
+UPDATE_FILES = [
+    "intellieye.py",
+    "screen_capture.py",
+    "model.py",
+    "controller.py",
+    "requirements.txt",
+]
+
+BASE_URL = "https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/"
+INSTALL_DIR = os.path.join(os.path.expanduser("~"), "intellieye")
+
+
+def update() -> None:
+    """GitHub에서 최신 파일을 내려받아 IntelliEye를 업데이트합니다."""
+    print("\n[IntelliEye] 업데이트 확인 중...")
+    updated = []
+    failed = []
+    for filename in UPDATE_FILES:
+        url = BASE_URL + filename
+        dest = os.path.join(INSTALL_DIR, filename)
+        try:
+            urllib.request.urlretrieve(url, dest)
+            updated.append(filename)
+            print(f"  ✅ {filename} 업데이트 완료")
+        except Exception as e:
+            failed.append(filename)
+            print(f"  ❌ {filename} 업데이트 실패: {e}")
+
+    # requirements 재설치
+    req_path = os.path.join(INSTALL_DIR, "requirements.txt")
+    if os.path.exists(req_path):
+        print("\n[IntelliEye] 패키지 업데이트 중...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", req_path, "-q"],
+            check=False,
+        )
+        if result.returncode != 0:
+            print("  ⚠️  일부 패키지 업데이트에 실패했습니다. 수동으로 확인해 주세요.")
+
+    print(f"\n[IntelliEye] 업데이트 완료! ({len(updated)}개 파일 업데이트)")
+    if failed:
+        print(f"  실패: {', '.join(failed)}")
+    print("[IntelliEye] 변경사항 적용을 위해 intellieye를 다시 실행하세요.\n")
+    sys.exit(0)
 
 
 def select_model() -> GemmaAgent:
@@ -90,13 +138,18 @@ def analyze_screen(agent: GemmaAgent) -> None:
 
 
 def main() -> None:
+    # --update 인수 처리
+    if len(sys.argv) > 1 and sys.argv[1] == "--update":
+        update()
+
     print(BANNER)
 
     agent = select_model()
     print("\n  IntelliEye 준비 완료! 명령을 입력하세요.")
     print("  특수 명령: '종료' 또는 'exit' — 프로그램 종료")
     print("             '상태'            — 현재 화면 분석")
-    print("             '모델변경'         — 모델 다시 선택\n")
+    print("             '모델변경'         — 모델 다시 선택")
+    print("             'update'          — 최신 버전으로 업데이트\n")
 
     while True:
         try:
@@ -111,6 +164,9 @@ def main() -> None:
         if user_input.lower() in ("종료", "exit"):
             print("  IntelliEye를 종료합니다. 안녕히 가세요!")
             sys.exit(0)
+
+        elif user_input.strip().lower() == "update":
+            update()
 
         elif user_input == "상태":
             analyze_screen(agent)
