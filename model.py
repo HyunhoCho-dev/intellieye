@@ -56,6 +56,47 @@ Available actions:
 x, y coordinates are in screen pixels."""
 
 
+def _handle_hf_auth_error(exc: Exception, model_id: str) -> None:
+    """Print a helpful message when HuggingFace returns a 401/gated-repo error."""
+    err_str = str(exc)
+    is_auth = (
+        "GatedRepoError" in type(exc).__name__
+        or "401" in err_str
+        or "gated" in err_str.lower()
+        or "Unauthorized" in err_str
+    )
+    if not is_auth:
+        return
+
+    print("\n", flush=True)
+    print("=" * 60, flush=True)
+    print("  ❌  HuggingFace authentication required", flush=True)
+    print("=" * 60, flush=True)
+    print(flush=True)
+    print(f"  Model '{model_id}' is a gated model.", flush=True)
+    print("  You must accept the licence on HuggingFace and log in.", flush=True)
+    print(flush=True)
+    print("  Steps:", flush=True)
+    print("    1. Create a free account at https://huggingface.co", flush=True)
+    print(f"    2. Visit https://huggingface.co/{model_id}", flush=True)
+    print("       and click 'Agree and access repository'.", flush=True)
+    print("    3. Create an access token at", flush=True)
+    print("       https://huggingface.co/settings/tokens", flush=True)
+    print("    4. Run the login command in your terminal:", flush=True)
+    print(flush=True)
+    print("         huggingface-cli login", flush=True)
+    print(flush=True)
+    print("       Paste your token when prompted.", flush=True)
+    print("    5. Re-run IntelliEye.", flush=True)
+    print(flush=True)
+    print("  Alternatively, set the HF_TOKEN environment variable:", flush=True)
+    print(flush=True)
+    print('         $env:HF_TOKEN = "hf_..."   # PowerShell', flush=True)
+    print(flush=True)
+    print("=" * 60, flush=True)
+    print(flush=True)
+
+
 def _detect_device() -> str:
     """Return the best available device (cuda > mps > cpu).
 
@@ -127,7 +168,11 @@ class GemmaAgent:
         print(f"  Device: {device}" + (" (safe-load mode)" if safe_load or device != "cuda" else ""), flush=True)
 
         print("  Loading processor...", flush=True)
-        self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        try:
+            self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        except Exception as e:
+            _handle_hf_auth_error(e, model_id)
+            raise
 
         # Set pad token to EOS if missing (access tokenizer safely)
         tok = getattr(self.processor, "tokenizer", None)
@@ -135,7 +180,11 @@ class GemmaAgent:
             tok.pad_token_id = tok.eos_token_id
 
         print("  Loading model weights (this may take a while)...", flush=True)
-        self.model = _load_model(model_id, device, safe_load)
+        try:
+            self.model = _load_model(model_id, device, safe_load)
+        except Exception as e:
+            _handle_hf_auth_error(e, model_id)
+            raise
 
         # If meta tensors are detected, retry with safe-load mode
         if _has_meta_params(self.model):

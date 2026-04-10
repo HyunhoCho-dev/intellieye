@@ -191,12 +191,12 @@ Write-Host "Installing packages (this may take a while)..." -ForegroundColor Cya
 $env:PYTHONUNBUFFERED = "1"
 
 # Upgrade pip / setuptools / wheel first.
-# Use -v so pip prints each step ("Collecting pip", "Downloading …", "Installing …")
-# which prevents the terminal from appearing frozen during network lookups.
+# Use -u (unbuffered) and -v so pip prints each step ("Collecting pip",
+# "Downloading …", "Installing …") which prevents the terminal from appearing
+# frozen during network lookups.
 Write-Host "  Upgrading pip / setuptools / wheel..."
-Write-Host "  (Connecting to PyPI — this may take up to 2 minutes, please wait...)" -ForegroundColor DarkGray
-& $venvPython -m pip install --upgrade pip setuptools wheel `
-    -v --no-cache-dir --timeout 60 --progress-bar on
+Write-Host "  (may take 30-60 seconds — progress appears below in real time)" -ForegroundColor DarkGray
+& $venvPython -u -m pip install --upgrade pip setuptools wheel --no-cache-dir --timeout 60
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  [WARNING] pip upgrade failed (exit $LASTEXITCODE). Continuing anyway." -ForegroundColor Yellow
     Write-Host "  (If this keeps failing, check your network connection or proxy settings.)" -ForegroundColor DarkGray
@@ -209,7 +209,7 @@ Write-Host "  ~500 MB-1 GB download — expect 5-20 minutes depending on your co
 Write-Host "  Progress will appear below in real time." -ForegroundColor DarkGray
 Write-Host ""
 $torchStart = Get-Date
-& $venvPython -m pip install `
+& $venvPython -u -m pip install `
     torch torchvision torchaudio `
     --index-url https://download.pytorch.org/whl/cpu `
     --no-cache-dir `
@@ -235,12 +235,79 @@ Write-Host "  [OK] torch installed ($torchElapsed seconds)" -ForegroundColor Gre
 $reqFile = Join-Path $installDir "requirements.txt"
 Write-Host ""
 Write-Host "  Installing remaining packages..."
-& $venvPython -m pip install -r $reqFile --no-cache-dir --timeout 120
+& $venvPython -u -m pip install -r $reqFile --no-cache-dir --timeout 120
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Package installation failed." -ForegroundColor Red
     exit 1
 }
 Write-Host "[OK] All packages installed" -ForegroundColor Green
+
+# ── 4b. HuggingFace authentication ───────────────────────────────────────────
+# Gemma 3n (google/gemma-3n-E4B-it / E2B-it) is a gated model.
+# Users must accept the licence on HuggingFace and authenticate.
+Write-Host ""
+Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "  HuggingFace Authentication (required for Gemma 3n)" -ForegroundColor Cyan
+Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host ""
+
+$hfToken = $env:HF_TOKEN
+if ($hfToken) {
+    Write-Host "[OK] HF_TOKEN environment variable is already set." -ForegroundColor Green
+    Write-Host "     Skipping interactive login." -ForegroundColor DarkGray
+    # Persist the token so future sessions pick it up automatically
+    [System.Environment]::SetEnvironmentVariable("HF_TOKEN", $hfToken, "User")
+} else {
+    # Check if already logged in via cached token file (~/.cache/huggingface/token)
+    $hfCacheToken = Join-Path $HOME ".cache\huggingface\token"
+    $alreadyLoggedIn = Test-Path $hfCacheToken
+
+    if ($alreadyLoggedIn) {
+        Write-Host "[OK] Already logged in to HuggingFace (cached token found)." -ForegroundColor Green
+    } else {
+        Write-Host "  Gemma 3n is a gated model — you need a HuggingFace account and" -ForegroundColor Yellow
+        Write-Host "  must accept the model licence before first use." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Steps:" -ForegroundColor Cyan
+        Write-Host "    1. Create a free account at https://huggingface.co (if needed)" -ForegroundColor Cyan
+        Write-Host "    2. Accept the Gemma 3n licence at:" -ForegroundColor Cyan
+        Write-Host "         https://huggingface.co/google/gemma-3n-E4B-it" -ForegroundColor White
+        Write-Host "       (click 'Agree and access repository')" -ForegroundColor Cyan
+        Write-Host "    3. Create an access token at:" -ForegroundColor Cyan
+        Write-Host "         https://huggingface.co/settings/tokens" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  You can log in now (recommended) or set HF_TOKEN manually later." -ForegroundColor Cyan
+        Write-Host ""
+        $loginNow = Read-Host "  Log in to HuggingFace now? (Y/n)"
+        if ($loginNow -eq "" -or $loginNow -match "^[Yy]") {
+            $hfCli = Join-Path $venvDir "Scripts\huggingface-cli.exe"
+            if (Test-Path $hfCli) {
+                Write-Host ""
+                Write-Host "  Running: huggingface-cli login" -ForegroundColor Cyan
+                Write-Host "  (Paste your token when prompted — it will not be displayed)" -ForegroundColor DarkGray
+                Write-Host ""
+                & $hfCli login
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "[OK] HuggingFace login successful!" -ForegroundColor Green
+                } else {
+                    Write-Host "[WARN] Login did not complete. You can log in later with:" -ForegroundColor Yellow
+                    Write-Host "         huggingface-cli login" -ForegroundColor Cyan
+                }
+            } else {
+                Write-Host "[WARN] huggingface-cli not found. Run this after install:" -ForegroundColor Yellow
+                Write-Host "         $venvPython -m pip install -U huggingface_hub" -ForegroundColor Cyan
+                Write-Host "         huggingface-cli login" -ForegroundColor Cyan
+            }
+        } else {
+            Write-Host ""
+            Write-Host "  Skipped. Log in before running IntelliEye:" -ForegroundColor Yellow
+            Write-Host "    huggingface-cli login" -ForegroundColor Cyan
+            Write-Host "  Or set HF_TOKEN in your environment:" -ForegroundColor Yellow
+            Write-Host '    [System.Environment]::SetEnvironmentVariable("HF_TOKEN","hf_...","User")' -ForegroundColor Cyan
+        }
+    }
+}
+Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
 # ── 5. Verify venv Python version ────────────────────────────────────────────
 $venvVerOut = & $venvPython --version 2>&1
