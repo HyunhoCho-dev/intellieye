@@ -74,7 +74,7 @@ def _handle_hf_auth_error(exc: Exception, model_id: str) -> None:
     print("=" * 60, flush=True)
     print(flush=True)
     print(f"  Model '{model_id}' is a gated model.", flush=True)
-    print("  You must accept the licence on HuggingFace and log in.", flush=True)
+    print("  You must accept the license on HuggingFace and log in.", flush=True)
     print(flush=True)
     print("  Steps:", flush=True)
     print("    1. Create a free account at https://huggingface.co", flush=True)

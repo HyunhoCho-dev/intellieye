@@ -244,7 +244,7 @@ Write-Host "[OK] All packages installed" -ForegroundColor Green
 
 # ── 4b. HuggingFace authentication ───────────────────────────────────────────
 # Gemma 3n (google/gemma-3n-E4B-it / E2B-it) is a gated model.
-# Users must accept the licence on HuggingFace and authenticate.
+# Users must accept the license on HuggingFace and authenticate.
 Write-Host ""
 Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 Write-Host "  HuggingFace Authentication (required for Gemma 3n)" -ForegroundColor Cyan
@@ -266,11 +266,11 @@ if ($hfToken) {
         Write-Host "[OK] Already logged in to HuggingFace (cached token found)." -ForegroundColor Green
     } else {
         Write-Host "  Gemma 3n is a gated model — you need a HuggingFace account and" -ForegroundColor Yellow
-        Write-Host "  must accept the model licence before first use." -ForegroundColor Yellow
+        Write-Host "  must accept the model license before first use." -ForegroundColor Yellow
         Write-Host ""
         Write-Host "  Steps:" -ForegroundColor Cyan
         Write-Host "    1. Create a free account at https://huggingface.co (if needed)" -ForegroundColor Cyan
-        Write-Host "    2. Accept the Gemma 3n licence at:" -ForegroundColor Cyan
+        Write-Host "    2. Accept the Gemma 3n license at:" -ForegroundColor Cyan
         Write-Host "         https://huggingface.co/google/gemma-3n-E4B-it" -ForegroundColor White
         Write-Host "       (click 'Agree and access repository')" -ForegroundColor Cyan
         Write-Host "    3. Create an access token at:" -ForegroundColor Cyan

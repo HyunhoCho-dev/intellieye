@@ -33,10 +33,10 @@ The installer automatically locates Python 3.12 for you.
 
 ### 🔑 HuggingFace account required (Gemma 3n)
 
-Gemma 3n is a **gated model** — you need a free HuggingFace account and must accept the licence before the model weights can be downloaded.
+Gemma 3n is a **gated model** — you need a free HuggingFace account and must accept the license before the model weights can be downloaded.
 
 1. Create a free account at [huggingface.co](https://huggingface.co)
-2. Accept the licence at **[google/gemma-3n-E4B-it](https://huggingface.co/google/gemma-3n-E4B-it)** (click *Agree and access repository*)
+2. Accept the license at **[google/gemma-3n-E4B-it](https://huggingface.co/google/gemma-3n-E4B-it)** (click *Agree and access repository*)
 3. Create an access token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 
 The installer will prompt you to run `huggingface-cli login` at the end of setup. You only need to do this once.
@@ -218,7 +218,7 @@ You must have access to it and be authenticated to access it.
 
 **Cause**: Gemma 3n is a gated model. You must:
 1. Have a HuggingFace account
-2. Accept the licence for the model
+2. Accept the license for the model
 3. Be authenticated in your local environment
 
 **Fix**:
