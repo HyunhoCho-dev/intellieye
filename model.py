@@ -1,6 +1,6 @@
 """
 model.py — IntelliEye
-Gemma 4 E4B / E2B model wrapper
+Gemma 3n E4B / E2B model wrapper
 Made by Hyunho Cho
 """
 
@@ -34,11 +34,11 @@ except ImportError:
         )
         sys.exit(1)
 
-from transformers import AutoModelForCausalLM, AutoProcessor
+from transformers import AutoModelForImageTextToText, AutoProcessor
 
 MODEL_IDS = {
-    "E4B": "google/gemma-4-E4B-it",
-    "E2B": "google/gemma-4-E2B-it",
+    "E4B": "google/gemma-3n-E4B-it",
+    "E2B": "google/gemma-3n-E2B-it",
 }
 
 SYSTEM_PROMPT = """You are an AI agent that watches the laptop screen in real time and accomplishes the user's goal.
@@ -92,7 +92,7 @@ def _load_model(model_id: str, device: str, safe_load: bool):
         Loaded model
     """
     if device == "cuda" and not safe_load:
-        return AutoModelForCausalLM.from_pretrained(
+        return AutoModelForImageTextToText.from_pretrained(
             model_id,
             device_map="auto",
             torch_dtype=torch.bfloat16,
@@ -100,7 +100,7 @@ def _load_model(model_id: str, device: str, safe_load: bool):
 
     # CPU / MPS or safe_load mode: avoid meta tensors by using
     # device_map=None, low_cpu_mem_usage=False, float32
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForImageTextToText.from_pretrained(
         model_id,
         device_map=None,
         torch_dtype=torch.float32,
@@ -111,7 +111,7 @@ def _load_model(model_id: str, device: str, safe_load: bool):
 
 
 class GemmaAgent:
-    """Load a Gemma 4 E4B or E2B model and decide screen-based actions."""
+    """Load a Gemma 3n E4B or E2B model and decide screen-based actions."""
 
     def __init__(self, model_name: str):
         """
@@ -129,9 +129,10 @@ class GemmaAgent:
         print("  Loading processor...", flush=True)
         self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
 
-        # Set pad token to EOS if missing
-        if self.processor.tokenizer.pad_token_id is None:
-            self.processor.tokenizer.pad_token_id = self.processor.tokenizer.eos_token_id
+        # Set pad token to EOS if missing (access tokenizer safely)
+        tok = getattr(self.processor, "tokenizer", None)
+        if tok is not None and tok.pad_token_id is None:
+            tok.pad_token_id = tok.eos_token_id
 
         print("  Loading model weights (this may take a while)...", flush=True)
         self.model = _load_model(model_id, device, safe_load)
@@ -145,8 +146,9 @@ class GemmaAgent:
             self.model = _load_model(model_id, device, safe_load=True)
 
         # Set pad/EOS token IDs in generation_config
-        eos_id = self.processor.tokenizer.eos_token_id
-        if hasattr(self.model, "generation_config"):
+        tok = getattr(self.processor, "tokenizer", None)
+        eos_id = tok.eos_token_id if tok is not None else None
+        if eos_id is not None and hasattr(self.model, "generation_config"):
             if self.model.generation_config.pad_token_id is None:
                 self.model.generation_config.pad_token_id = eos_id
             if self.model.generation_config.eos_token_id is None:
@@ -188,18 +190,24 @@ class GemmaAgent:
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": screen_image},
+                    {"type": "image"},
                     {"type": "text", "text": SYSTEM_PROMPT + "\n\n" + user_text},
                 ],
             }
         ]
 
-        inputs = self.processor.apply_chat_template(
+        # Apply chat template to get the formatted text prompt
+        text = self.processor.apply_chat_template(
             messages,
+            tokenize=False,
             add_generation_prompt=True,
-            tokenize=True,
+        )
+
+        # Process text and image together (Gemma 3n multimodal API)
+        inputs = self.processor(
+            text=text,
+            images=[screen_image],
             return_tensors="pt",
-            return_dict=True,
         )
         inputs = inputs.to(next(self.model.parameters()).device)
 
@@ -210,8 +218,7 @@ class GemmaAgent:
         )
 
         # Decode only the generated tokens (after input)
-        input_ids = inputs["input_ids"] if isinstance(inputs, dict) else inputs
-        input_len = input_ids.shape[1]
+        input_len = inputs["input_ids"].shape[1]
         generated_ids = outputs[0][input_len:]
         response_text = self.processor.decode(generated_ids, skip_special_tokens=True).strip()
 

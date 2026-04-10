@@ -48,8 +48,8 @@ BANNER = """
 """
 
 MODEL_MENU = """Select a model:
-  [1] Gemma 4 E4B (4.5B) - Recommended: laptop/PC
-  [2] Gemma 4 E2B (2.3B) - Lightweight: low-spec / faster
+  [1] Gemma 3n E4B (4.5B) - Recommended: laptop/PC
+  [2] Gemma 3n E2B (2.3B) - Lightweight: low-spec / faster
 Choice (1 or 2): """
 
 UPDATE_FILES = [

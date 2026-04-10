@@ -5,7 +5,7 @@
 **Made by Hyunho Cho**
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python)](https://www.python.org/downloads/release/python-3121/)
-[![Gemma 4](https://img.shields.io/badge/Model-Gemma%204-orange?logo=google)](https://deepmind.google/models/gemma/gemma-4/)
+[![Gemma 3n](https://img.shields.io/badge/Model-Gemma%203n-orange?logo=google)](https://deepmind.google/models/gemma/gemma-3n/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
 ---
@@ -49,8 +49,8 @@ After launching IntelliEye you interact with the AI agent in the PowerShell wind
   Made by Hyunho Cho
 ========================================
 Select a model:
-  [1] Gemma 4 E4B (4.5B) - Recommended: laptop/PC
-  [2] Gemma 4 E2B (2.3B) - Lightweight: low-spec / faster
+  [1] Gemma 3n E4B (4.5B) - Recommended: laptop/PC
+  [2] Gemma 3n E2B (2.3B) - Lightweight: low-spec / faster
 Choice (1 or 2):
 ```
 
@@ -90,16 +90,19 @@ IntelliEye reports what it is doing at every step so you always know it is worki
 
 ## 🤖 Model comparison
 
-| | **Gemma 4 E4B** | **Gemma 4 E2B** |
+| | **Gemma 3n E4B** | **Gemma 3n E2B** |
 |---|---|---|
-| **Parameters** | ~4.5 B | ~2.3 B |
+| **Parameters** | ~4.5 B (effective) | ~2.3 B (effective) |
 | **Recommended for** | Laptop / PC | Low-spec PC / faster responses |
 | **VRAM (INT4)** | ~3.6 GB | ~2.0 GB |
 | **Inference speed** | Medium | Fast |
 | **Screen analysis accuracy** | High | Moderate |
-| **HuggingFace ID** | `google/gemma-4-E4B-it` | `google/gemma-4-E2B-it` |
+| **Multimodal** | ✅ Image + text | ✅ Image + text |
+| **HuggingFace ID** | `google/gemma-3n-E4B-it` | `google/gemma-3n-E2B-it` |
 
-> 💡 On first run, model weights are downloaded automatically from HuggingFace (several GB).
+> 💡 Gemma 3n is Google's on-device multimodal model with native image understanding support — ideal for real-time screen analysis.
+
+> On first run, model weights are downloaded automatically from HuggingFace (several GB).
 
 ---
 
@@ -129,8 +132,9 @@ User input (PowerShell)
   Screen capture (mss / PIL)
         │
         ▼
-  Gemma 4 E4B/E2B inference
+  Gemma 3n E4B/E2B inference
   (screen image + goal → JSON action)
+  [multimodal: image + text → text]
         │
         ▼
   Action execution (PyAutoGUI)
@@ -164,7 +168,7 @@ intellieye/
 ├── install.ps1        # One-click installer script
 ├── intellieye.py      # Main entry point (PowerShell dialog UI)
 ├── screen_capture.py  # Screen capture & base64 conversion
-├── model.py           # Gemma 4 agent wrapper
+├── model.py           # Gemma 3n agent wrapper
 ├── controller.py      # Mouse/keyboard control
 ├── requirements.txt   # Python package list
 └── README.md
@@ -222,7 +226,7 @@ iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/i
 
 ```
 Loading IntelliEye modules...
-  Loading model: google/gemma-4-E4B-it
+  Loading model: google/gemma-3n-E4B-it
   (First run: downloading model weights — this may take several minutes...)
   Device: cpu
   Loading processor...
