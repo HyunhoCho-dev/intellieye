@@ -36,10 +36,44 @@ except ImportError:
 
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
+# Import GatedRepoError for graceful auth error handling.
+# huggingface_hub >= 0.21 exposes it in huggingface_hub.errors;
+# older versions may not have it, so we fall back to a plain Exception alias.
+try:
+    from huggingface_hub.errors import GatedRepoError
+except ImportError:
+    try:
+        from huggingface_hub.utils import GatedRepoError  # type: ignore[no-redef]
+    except ImportError:
+        GatedRepoError = None  # type: ignore[assignment,misc]
+
 MODEL_IDS = {
     "E4B": "google/gemma-3n-E4B-it",
     "E2B": "google/gemma-3n-E2B-it",
 }
+
+
+def _gated_access_message(model_id: str) -> str:
+    """Return a user-friendly message explaining how to unlock a gated HF model."""
+    hf_url = f"https://huggingface.co/{model_id}"
+    return (
+        f"\n❌ Access Denied: '{model_id}' is a gated model on Hugging Face.\n\n"
+        "  To use this model you need to:\n"
+        f"    1. Visit {hf_url}\n"
+        "       and click 'Agree and access repository' to accept the license.\n"
+        "    2. Create a Hugging Face account if you don't have one (free):\n"
+        "       https://huggingface.co/join\n"
+        "    3. Generate a read token at:\n"
+        "       https://huggingface.co/settings/tokens\n"
+        "    4. Log in from your terminal:\n"
+        "         huggingface-cli login\n"
+        "       (paste your token when prompted)\n"
+        "    5. Restart IntelliEye and try again.\n\n"
+        "  Alternatively, set the HUGGING_FACE_HUB_TOKEN environment variable:\n"
+        "    Windows PowerShell:\n"
+        "      $env:HUGGING_FACE_HUB_TOKEN = 'hf_your_token_here'\n"
+        "      intellieye\n"
+    )
 
 SYSTEM_PROMPT = """You are an AI agent that watches the laptop screen in real time and accomplishes the user's goal.
 Analyze the screen image and return exactly one next action in one of the JSON formats below.
@@ -110,6 +144,21 @@ def _load_model(model_id: str, device: str, safe_load: bool):
     return model
 
 
+def _is_gated_error(exc: BaseException) -> bool:
+    """Return True if the exception indicates a gated/unauthorized HF model access."""
+    # Direct GatedRepoError from huggingface_hub (if available)
+    if GatedRepoError is not None and isinstance(exc, GatedRepoError):
+        return True
+    # Fallback: inspect the exception message for telltale strings
+    msg = str(exc).lower()
+    return (
+        "gated" in msg
+        or ("401" in msg and "huggingface" in msg)
+        or "access to model" in msg
+        or ("restricted" in msg and "authenticate" in msg)
+    )
+
+
 class GemmaAgent:
     """Load a Gemma 3n E4B or E2B model and decide screen-based actions."""
 
@@ -117,6 +166,10 @@ class GemmaAgent:
         """
         Args:
             model_name: "E4B" or "E2B"
+
+        Raises:
+            SystemExit: if the model is gated and the user is not authenticated.
+            RuntimeError: if meta tensors are detected and safe-load also fails.
         """
         model_id = MODEL_IDS.get(model_name.upper(), MODEL_IDS["E4B"])
         print(f"  Loading model: {model_id}", flush=True)
@@ -127,7 +180,13 @@ class GemmaAgent:
         print(f"  Device: {device}" + (" (safe-load mode)" if safe_load or device != "cuda" else ""), flush=True)
 
         print("  Loading processor...", flush=True)
-        self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        try:
+            self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        except Exception as exc:
+            if _is_gated_error(exc):
+                print(_gated_access_message(model_id), flush=True)
+                sys.exit(1)
+            raise
 
         # Set pad token to EOS if missing (access tokenizer safely)
         tok = getattr(self.processor, "tokenizer", None)
@@ -135,7 +194,13 @@ class GemmaAgent:
             tok.pad_token_id = tok.eos_token_id
 
         print("  Loading model weights (this may take a while)...", flush=True)
-        self.model = _load_model(model_id, device, safe_load)
+        try:
+            self.model = _load_model(model_id, device, safe_load)
+        except Exception as exc:
+            if _is_gated_error(exc):
+                print(_gated_access_message(model_id), flush=True)
+                sys.exit(1)
+            raise
 
         # If meta tensors are detected, retry with safe-load mode
         if _has_meta_params(self.model):

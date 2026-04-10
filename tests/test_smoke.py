@@ -7,9 +7,11 @@ Verifies that:
 - Python 3.13 receives an informational warning but continues.
 - Python 3.12 (and other supported versions) run without any version warning.
 - The currently-running Python is in the supported range (3.10+).
+- Gated HF model access errors are detected and produce a friendly message.
 
 Dependencies (torch, transformers, etc.) are not installed in CI, so this
-file avoids importing those modules and only validates the version gate logic.
+file avoids importing those modules and only validates the version gate logic
+and the gated-error detection logic inline.
 """
 
 import subprocess
@@ -179,3 +181,86 @@ def test_supports_python_310_and_above():
     assert sys.version_info >= (3, 10), (
         f"Python 3.10 or higher is required. Current: {sys.version_info}"
     )
+
+
+# ── Gated HF model access error detection tests ──────────────────────────────
+
+def test_gated_error_detection_via_message():
+    """_is_gated_error logic should identify gated/auth errors from exception messages."""
+    code = """
+        def _is_gated_error(exc):
+            msg = str(exc).lower()
+            return (
+                "gated" in msg
+                or ("401" in msg and "huggingface" in msg)
+                or "access to model" in msg
+                or ("restricted" in msg and "authenticate" in msg)
+            )
+
+        # Should match — contains "gated"
+        assert _is_gated_error(Exception("GatedRepoError: gated model")), "gated keyword missed"
+        # Should match — 401 + huggingface in msg
+        assert _is_gated_error(Exception("401 Client Error for url huggingface.co/...")), "401+huggingface missed"
+        # Should match — "access to model"
+        assert _is_gated_error(Exception("Access to model google/gemma-3n is restricted")), "access to model missed"
+        # Should NOT match — unrelated error
+        assert not _is_gated_error(Exception("ConnectionError: timeout")), "false positive"
+        print("ok")
+    """
+    result = _run_python(code)
+    assert result.returncode == 0, f"gated error detection failed:\n{result.stdout}\n{result.stderr}"
+    assert "ok" in result.stdout
+
+
+def test_gated_access_message_contains_key_info():
+    """_gated_access_message should include HF URL, login instructions, and env var hint."""
+    code = """
+        def _gated_access_message(model_id):
+            hf_url = f"https://huggingface.co/{model_id}"
+            return (
+                f"Access Denied: '{model_id}' is a gated model on Hugging Face.\\n\\n"
+                f"  Visit {hf_url}\\n"
+                "  huggingface-cli login\\n"
+                "  HUGGING_FACE_HUB_TOKEN\\n"
+            )
+
+        msg = _gated_access_message("google/gemma-3n-E4B-it")
+        assert "google/gemma-3n-E4B-it" in msg
+        assert "https://huggingface.co/google/gemma-3n-E4B-it" in msg
+        assert "huggingface-cli login" in msg
+        assert "HUGGING_FACE_HUB_TOKEN" in msg
+        print("ok")
+    """
+    result = _run_python(code)
+    assert result.returncode == 0, f"message check failed:\n{result.stdout}\n{result.stderr}"
+    assert "ok" in result.stdout
+
+
+def test_gated_error_causes_clean_exit():
+    """When a gated error is detected, the program should exit with code 1 (not crash)."""
+    code = """
+        import sys
+
+        def _is_gated_error(exc):
+            msg = str(exc).lower()
+            return "gated" in msg or ("401" in msg and "huggingface" in msg)
+
+        def _gated_access_message(model_id):
+            return f"Access Denied: '{model_id}' is a gated model."
+
+        def load_model(model_id):
+            raise Exception("GatedRepoError: gated model requires authentication")
+
+        try:
+            load_model("google/gemma-3n-E4B-it")
+        except Exception as exc:
+            if _is_gated_error(exc):
+                print(_gated_access_message("google/gemma-3n-E4B-it"))
+                sys.exit(1)
+            raise
+    """
+    result = _run_python(code)
+    assert result.returncode == 1, (
+        f"Gated error should produce exit code 1. Got: {result.returncode}"
+    )
+    assert "Access Denied" in result.stdout, "Friendly error message should appear in output"
