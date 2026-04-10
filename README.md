@@ -31,7 +31,17 @@ The installer automatically locates Python 3.12 for you.
 > ⚠️ **Python 3.14+ is not supported.** PyTorch pre-built wheels are not available for it — installation will fail.
 > The installer handles this automatically by targeting Python 3.12, so you can run the one-liner as-is even if only Python 3.14 is installed.
 
-When installation completes, start IntelliEye by opening a **new** PowerShell window and typing:
+### 🔑 HuggingFace account required (Gemma 3n)
+
+Gemma 3n is a **gated model** — you need a free HuggingFace account and must accept the license before the model weights can be downloaded.
+
+1. Create a free account at [huggingface.co](https://huggingface.co)
+2. Accept the license at **[google/gemma-3n-E4B-it](https://huggingface.co/google/gemma-3n-E4B-it)** (click *Agree and access repository*)
+3. Create an access token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+
+The installer will prompt you to run `huggingface-cli login` at the end of setup. You only need to do this once.
+
+When installation completes, start IntelliEye with:
 
 ```powershell
 intellieye
@@ -195,6 +205,42 @@ intellieye/
 ---
 
 ## 🩺 Troubleshooting
+
+### ❌ `GatedRepoError: 401 Unauthorized` / Cannot access Gemma 3n
+
+**Symptom**: Running IntelliEye shows an error like:
+
+```
+huggingface_hub.errors.GatedRepoError: 401 Client Error.
+Access to model google/gemma-3n-E4B-it is restricted.
+You must have access to it and be authenticated to access it.
+```
+
+**Cause**: Gemma 3n is a gated model. You must:
+1. Have a HuggingFace account
+2. Accept the license for the model
+3. Be authenticated in your local environment
+
+**Fix**:
+
+1. Visit [google/gemma-3n-E4B-it](https://huggingface.co/google/gemma-3n-E4B-it) and click **"Agree and access repository"**
+2. Create an access token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+3. Log in from PowerShell:
+
+```powershell
+huggingface-cli login
+# Paste your token when prompted
+```
+
+Or set the token as an environment variable directly:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("HF_TOKEN", "hf_YOUR_TOKEN_HERE", "User")
+```
+
+Then restart PowerShell and run `intellieye` again.
+
+---
 
 ### ⏳ Stuck at "Upgrading pip / setuptools / wheel..."
 
