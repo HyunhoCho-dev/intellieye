@@ -211,6 +211,8 @@ def main() -> None:
 
     try:
         agent = select_model()
+    except SystemExit:
+        raise
     except RuntimeError as exc:
         if "meta" in str(exc).lower():
             print(
@@ -231,6 +233,10 @@ def main() -> None:
             )
             sys.exit(1)
         raise
+    except Exception as exc:
+        # Catch any other model-loading error (e.g. network, disk space)
+        print(f"\n❌ Failed to load model: {exc}\n", file=sys.stderr)
+        sys.exit(1)
 
     print("\n  IntelliEye is ready! Enter a command below.")
     print("  Special commands:")
