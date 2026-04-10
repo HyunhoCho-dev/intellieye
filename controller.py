@@ -1,6 +1,6 @@
 """
 controller.py — IntelliEye
-PyAutoGUI 기반 마우스/키보드 제어 모듈
+PyAutoGUI-based mouse/keyboard control module
 Made by Hyunho Cho
 """
 
@@ -11,15 +11,15 @@ import pyperclip
 
 pyautogui.FAILSAFE = True
 
-# ASCII 범위 경계값 — 이 값을 초과하는 문자는 유니코드(한글 등)로 간주합니다.
+# Characters above this codepoint are treated as Unicode (e.g., non-ASCII scripts).
 ASCII_MAX = 127
 
 
 def execute_action(action: dict) -> str:
     """
-    모델이 결정한 액션 딕셔너리를 실행하고 설명 문자열을 반환합니다.
+    Execute the action dictionary decided by the model and return a description string.
 
-    지원 액션:
+    Supported actions:
       {"action":"click",      "x":int, "y":int, "description":str}
       {"action":"type",       "text":str, "description":str}
       {"action":"hotkey",     "keys":[str], "description":str}
@@ -38,7 +38,7 @@ def execute_action(action: dict) -> str:
 
     elif action_type == "type":
         text = action.get("text", "")
-        # 한글/유니코드 텍스트는 클립보드를 통해 붙여넣기
+        # Non-ASCII text is pasted via clipboard to handle Unicode correctly
         if any(ord(c) > ASCII_MAX for c in text):
             pyperclip.copy(text)
             pyautogui.hotkey("ctrl", "v")
@@ -59,7 +59,7 @@ def execute_action(action: dict) -> str:
         time.sleep(0.5)
 
     elif action_type == "screenshot":
-        # 화면 분석만 요청하는 액션 (캡처는 메인 루프에서 처리)
+        # Screen-analysis-only action (capture is handled in the main loop)
         time.sleep(0.5)
 
     elif action_type == "done":

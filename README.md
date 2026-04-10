@@ -1,6 +1,6 @@
 # 👁️ IntelliEye
 
-> **AI가 화면을 보면서 노트북을 제어하는 에이전트**
+> **AI agent that watches the screen in real time and controls your PC**
 
 **Made by Hyunho Cho**
 
@@ -10,28 +10,28 @@
 
 ---
 
-## ⚡ 1분 설치 (Windows PowerShell)
+## ⚡ One-line install (Windows PowerShell)
 
-PowerShell 창을 열고 아래 명령어 **한 줄**만 실행하세요:
+Open a PowerShell window and run **just this one command**:
 
 ```powershell
 iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
 ```
 
-### 🔄 자동 Python 3.12 설치
+### 🔄 Automatic Python 3.12 setup
 
-인스톨러가 **Python 3.12** 를 자동으로 탐색합니다.
+The installer automatically locates Python 3.12 for you.
 
-| 상황 | 동작 |
-|------|------|
-| Python 3.12 이미 설치됨 | 즉시 사용 (`py -3.12` 또는 PATH) |
-| Python 3.12 없음 + winget 있음 | winget으로 Python 3.12 자동 설치 후 진행 |
-| Python 3.14 만 있음 (winget 없음) | 오류 메시지 + 수동 설치 안내 |
+| Situation | Behavior |
+|-----------|----------|
+| Python 3.12 already installed | Used immediately (`py -3.12` or PATH) |
+| Python 3.12 missing + winget available | Python 3.12 installed automatically via winget |
+| Only Python 3.14 + no winget | Clear error message with manual install steps |
 
-> ⚠️ **Python 3.14 이상은 지원되지 않습니다.** PyTorch 사전 빌드 wheel이 없어 설치가 실패합니다.  
-> 인스톨러가 Python 3.12 를 자동으로 준비하므로, Python 3.14만 있어도 한 줄 설치 명령을 그대로 실행하면 됩니다.
+> ⚠️ **Python 3.14+ is not supported.** PyTorch pre-built wheels are not available for it — installation will fail.
+> The installer handles this automatically by targeting Python 3.12, so you can run the one-liner as-is even if only Python 3.14 is installed.
 
-설치가 완료되면 아래 명령으로 실행합니다:
+When installation completes, start IntelliEye with:
 
 ```powershell
 powershell "$HOME\intellieye\run.ps1"
@@ -39,89 +39,101 @@ powershell "$HOME\intellieye\run.ps1"
 
 ---
 
-## 🎯 사용 방법
+## 🎯 Usage
 
-IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수 있습니다.
+After launching IntelliEye you interact with the AI agent in the PowerShell window.
 
 ```
 ========================================
   IntelliEye - AI Screen Control Agent
   Made by Hyunho Cho
 ========================================
-모델을 선택하세요:
-  [1] Gemma 4 E4B (4.5B) - 권장: 노트북/PC
-  [2] Gemma 4 E2B (2.3B) - 경량: 저사양/빠른속도
-선택 (1 또는 2):
+Select a model:
+  [1] Gemma 4 E4B (4.5B) - Recommended: laptop/PC
+  [2] Gemma 4 E2B (2.3B) - Lightweight: low-spec / faster
+Choice (1 or 2):
 ```
 
-모델을 선택한 후 자연어로 명령을 입력합니다:
+After selecting a model, type natural-language commands:
 
 ```
-사용자 > 크롬 열고 유튜브에서 AI 영상 검색해줘
-  [IntelliEye] click: 바탕화면의 크롬 아이콘 클릭
-  [IntelliEye] type: 유튜브 URL 입력
-  [IntelliEye] click: 검색창 클릭
-  [IntelliEye] type: AI 영상 검색어 입력
-  [IntelliEye] hotkey: Enter 키 입력
-  ✅ 목표 달성 완료!
+User > Open Chrome and search YouTube for AI videos
+  [IntelliEye] click: Click the Chrome icon on the desktop
+  [IntelliEye] type: Type YouTube URL
+  [IntelliEye] click: Click the search bar
+  [IntelliEye] type: Type AI video search term
+  [IntelliEye] hotkey: Press Enter
+  ✅ Goal achieved!
 ```
 
-### 특수 명령어
+### Special commands
 
-| 명령어 | 동작 |
-|--------|------|
-| `종료` / `exit` | 프로그램 종료 |
-| `상태` | 현재 화면 분석 및 설명 |
-| `모델변경` | 모델 재선택 |
+| Command | Action |
+|---------|--------|
+| `exit` / `quit` | Quit the program |
+| `status` | Analyze and describe the current screen |
+| `change-model` | Switch to a different model |
+| `update` | Update to the latest version |
+| `doctor` | Show environment diagnostics |
+
+### Progress indicators
+
+IntelliEye reports what it is doing at every step so you always know it is working:
+
+- **Startup** — "Loading IntelliEye modules..."
+- **Model load** — "Loading processor...", "Loading model weights (this may take a while)..."
+- **First run** — "(First run: downloading model weights — this may take several minutes...)"
+- **Agent loop** — "Capturing screen...", "Analyzing screen..." (updated in real time)
+- **Result** — action type and description printed for every step
 
 ---
 
-## 🤖 모델 비교
+## 🤖 Model comparison
 
 | | **Gemma 4 E4B** | **Gemma 4 E2B** |
 |---|---|---|
-| **파라미터** | ~4.5B | ~2.3B |
-| **권장 환경** | 노트북 / PC | 저사양 PC / 빠른 응답 |
+| **Parameters** | ~4.5 B | ~2.3 B |
+| **Recommended for** | Laptop / PC | Low-spec PC / faster responses |
 | **VRAM (INT4)** | ~3.6 GB | ~2.0 GB |
-| **추론 속도** | 중간 | 빠름 |
-| **화면 분석 정확도** | 높음 | 보통 |
+| **Inference speed** | Medium | Fast |
+| **Screen analysis accuracy** | High | Moderate |
 | **HuggingFace ID** | `google/gemma-4-E4B-it` | `google/gemma-4-E2B-it` |
 
-> 💡 처음 실행 시 HuggingFace에서 모델을 자동으로 다운로드합니다 (수 GB).
+> 💡 On first run, model weights are downloaded automatically from HuggingFace (several GB).
 
 ---
 
-## 🖥️ 시스템 요구 사항
+## 🖥️ System requirements
 
-| 항목 | 최소 사양 | 권장 사양 |
-|------|---------|---------|
-| **OS** | Windows 10 이상 | Windows 11 |
-| **Python** | **3.12** (자동 설치 지원) | **3.12** (**3.13 부분 지원, 3.14+ 미지원**) |
+| Item | Minimum | Recommended |
+|------|---------|-------------|
+| **OS** | Windows 10 or later | Windows 11 |
+| **Python** | **3.12** (auto-installed by installer) | **3.12** (3.13 partial support; **3.14+ not supported**) |
 | **RAM** | 8 GB | 16 GB |
 | **GPU VRAM** | 4 GB (E2B) | 6 GB (E4B) |
-| **저장 공간** | 10 GB | 20 GB |
-| **인터넷** | 최초 모델 다운로드 필요 | — |
+| **Storage** | 10 GB | 20 GB |
+| **Internet** | Required for initial model download | — |
 
-> ⚠️ **Python 3.12 필수**: PyTorch(torch)는 Python 3.13에서 부분 지원, **Python 3.14 이상은 미지원**입니다.  
-> 인스톨러가 자동으로 Python 3.12 를 탐색하고 없으면 **winget** 을 통해 자동 설치합니다.  
-> Python 3.14 만 설치된 시스템에서도 한 줄 설치 명령을 그대로 실행하면 됩니다.
+> ⚠️ **Python 3.12 required**: PyTorch partially supports Python 3.13 and **does not support Python 3.14+**.
+> The installer automatically finds Python 3.12 and installs it via `winget` if needed.
+> You can safely run the one-liner even if only Python 3.14 is installed.
 
 ---
 
-## ⚙️ 동작 원리
+## ⚙️ How it works
 
 ```
-사용자 입력 (PowerShell)
+User input (PowerShell)
         │
         ▼
-  화면 캡처 (mss / PIL)
+  Screen capture (mss / PIL)
         │
         ▼
-  Gemma 4 E4B/E2B 추론
-  (화면 이미지 + 목표 → JSON 액션)
+  Gemma 4 E4B/E2B inference
+  (screen image + goal → JSON action)
         │
         ▼
-  액션 실행 (PyAutoGUI)
+  Action execution (PyAutoGUI)
   ┌──────────────────────┐
   │ click  / type        │
   │ hotkey / scroll      │
@@ -129,83 +141,104 @@ IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수
   └──────────────────────┘
         │
         ▼
-  화면 변화 감지 → 반복
-  (done 액션 시 완료)
+  Detect screen change → repeat
+  (stops on 'done' action)
 ```
 
 ---
 
-## 🛡️ 안전 기능 (FAILSAFE)
+## 🛡️ Safety (FAILSAFE)
 
-IntelliEye는 `pyautogui.FAILSAFE = True`로 설정되어 있습니다.
+IntelliEye runs with `pyautogui.FAILSAFE = True`.
 
-> **마우스를 화면 모서리(왼쪽 위)로 빠르게 이동하면 에이전트가 즉시 중단됩니다.**
+> **Move the mouse to the top-left corner of the screen to immediately stop the agent.**
 
-예기치 않은 동작이 발생할 경우 이 기능을 활용하세요. 또한 `Ctrl+C`로도 언제든지 중단할 수 있습니다.
+Use this if the agent behaves unexpectedly. You can also press `Ctrl+C` at any time.
 
 ---
 
-## 📁 파일 구조
+## 📁 File structure
 
 ```
 intellieye/
-├── install.ps1        # 원클릭 설치 스크립트
-├── intellieye.py      # 메인 진입점 (PowerShell 대화 UI)
-├── screen_capture.py  # 화면 캡처 & base64 변환
-├── model.py           # Gemma 4 에이전트 래퍼
-├── controller.py      # 마우스/키보드 제어
-├── requirements.txt   # Python 패키지 목록
+├── install.ps1        # One-click installer script
+├── intellieye.py      # Main entry point (PowerShell dialog UI)
+├── screen_capture.py  # Screen capture & base64 conversion
+├── model.py           # Gemma 4 agent wrapper
+├── controller.py      # Mouse/keyboard control
+├── requirements.txt   # Python package list
 └── README.md
 ```
 
 ---
 
-## 🩺 문제 해결 (Troubleshooting)
+## 🩺 Troubleshooting
 
-### ⏳ `torch 설치 중...` 단계에서 멈춤 (Python 3.14 사용 시)
+### ⏳ Stuck at "Installing torch..." (Python 3.14)
 
-**증상**: `install.ps1` 실행 시 `torch / torchvision / torchaudio 설치 중...` 에서 수분 이상 아무 진행이 없음.
+**Symptom**: `install.ps1` appears frozen at the `torch / torchvision / torchaudio` step for several minutes.
 
-**원인**: PyTorch는 **Python 3.14 이상에 대한 사전 빌드(wheel) 패키지를 제공하지 않습니다**.  
-wheel이 없으면 pip가 소스에서 빌드를 시도하거나 오랜 시간 검색하다 실패합니다.
+**Cause**: PyTorch provides no pre-built wheel for Python 3.14+. pip either attempts a source build (which can take a very long time) or silently searches without result.
 
-**업데이트된 인스톨러 동작** (현재 버전):
+**Updated installer behavior** (current version):
 
-인스톨러가 Python 3.14 감지 시 **Python 3.12 를 자동으로 탐색·설치**합니다.
+The installer detects Python 3.14 and **automatically locates or installs Python 3.12** before proceeding.
 
-1. `py -3.12` 명령으로 Python 3.12 존재 여부 확인
-2. 없으면 `winget` 으로 자동 설치 (`winget install Python.Python.3.12`)
-3. 설치 후 Python 3.12 가상환경(`.venv`) 생성
-4. 가상환경 안에서 torch 설치 진행
+1. Checks for `py -3.12`
+2. If missing, installs via `winget install Python.Python.3.12`
+3. Creates a `.venv` with Python 3.12
+4. Installs torch inside that virtual environment
 
-**한 줄 설치 명령을 그대로 실행하면 됩니다:**
+**Just run the one-liner and let the installer handle it:**
 
 ```powershell
 iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
 ```
 
-**자동 설치가 실패한 경우 수동 해결:**
+**If automatic installation fails, fix it manually:**
 
-1. **Python 3.12 설치 (권장)**
+1. **Install Python 3.12 (recommended)**
    ```
    https://www.python.org/downloads/release/python-3121/
    ```
-   - 설치 시 "Add Python to PATH" 또는 "py 런처" 옵션 체크
-   - PowerShell 재시작 후 `install.ps1` 다시 실행
+   - Check "Add Python to PATH" or "py launcher" during install.
+   - Restart PowerShell and re-run `install.ps1`.
 
-2. **이미 Python 3.12가 있는 경우 확인**
+2. **Verify Python 3.12 is available**
    ```powershell
-   py -3.12 --version   # 3.12 확인
-   py --list            # 설치된 모든 버전 목록
+   py -3.12 --version   # should show 3.12.x
+   py --list            # list all installed versions
    ```
+
+---
+
+### ⏳ Startup looks frozen (model loading)
+
+**Symptom**: Running `run.ps1` prints the version notice then appears to hang.
+
+**Cause**: The first time you run IntelliEye it must download several GB of model weights from HuggingFace. This is normal and can take 5–30 minutes depending on your connection.
+
+**What you will see during normal operation:**
+
+```
+Loading IntelliEye modules...
+  Loading model: google/gemma-4-E4B-it
+  (First run: downloading model weights — this may take several minutes...)
+  Device: cpu
+  Loading processor...
+  Loading model weights (this may take a while)...
+  ✅ Model loaded successfully!
+```
+
+If the terminal shows these messages and is progressing (disk/network activity visible), the app is **not hung** — it is downloading or loading weights. Please wait.
 
 ---
 
 ### ❌ `RuntimeError: Tensor.item() cannot be called on meta tensors`
 
-이 오류는 CPU 전용 환경(GPU 없음)에서 `device_map="auto"` 사용 시 모델 가중치가 meta 디바이스에 남아있을 때 발생합니다.
+This occurs in CPU-only environments (no GPU) when `device_map="auto"` leaves weights on the meta device.
 
-**해결 방법 1 — 안전 로드 모드 활성화 (권장)**
+**Solution 1 — Enable safe-load mode (recommended)**
 
 ```powershell
 # Windows PowerShell
@@ -213,7 +246,7 @@ $env:INTELLIEYE_SAFE_LOAD='1'
 python intellieye.py
 ```
 
-**해결 방법 2 — CPU 전용 모드 강제**
+**Solution 2 — Force CPU-only mode**
 
 ```powershell
 $env:INTELLIEYE_DEVICE='cpu'
@@ -221,17 +254,16 @@ $env:INTELLIEYE_SAFE_LOAD='1'
 python intellieye.py
 ```
 
-**해결 방법 3 — 패키지 최신 버전 업데이트**
+**Solution 3 — Update packages**
 
 ```powershell
 pip install -U torch transformers accelerate
 ```
 
-**해결 방법 4 — Python 버전 확인**
+**Solution 4 — Check Python version**
 
-Python 3.14+는 현재 지원되지 않습니다. **Python 3.12 사용을 권장합니다.**  
-인스톨러를 다시 실행하면 Python 3.12 자동 설치를 시도합니다.  
-[Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/)
+Python 3.14+ is not supported. Use Python 3.12.
+Run the installer again to set up Python 3.12 automatically.
 
 ```powershell
 python --version
@@ -239,57 +271,55 @@ python --version
 
 ---
 
-### 🩺 환경 진단 (doctor 명령)
-
-`doctor` 명령으로 환경 정보를 확인할 수 있습니다.
+### 🩺 Environment diagnostics (`doctor` command)
 
 ```powershell
-# CLI 인수로 실행
+# As a CLI argument
 python intellieye.py doctor
 
-# 또는 실행 중 입력
-사용자 > doctor
+# Or while running
+User > doctor
 ```
 
-출력 예시:
+Example output:
 
 ```
-[IntelliEye] doctor — 환경 정보
-  Python         : 3.11.9 (main, ...)
+[IntelliEye] doctor — environment info
+  Python         : 3.12.4 (main, ...)
   torch          : 2.5.1
   transformers   : 4.48.0
   accelerate     : 1.2.0
-  CUDA 사용 가능 : False
-  INTELLIEYE_DEVICE    : (미설정)
-  INTELLIEYE_SAFE_LOAD : (미설정)
+  CUDA available : False
+  INTELLIEYE_DEVICE    : (not set)
+  INTELLIEYE_SAFE_LOAD : (not set)
 ```
 
 ---
 
-## 🔧 수동 설치
+## 🔧 Manual installation
 
-> **주의**: **Python 3.12** 를 사용하세요. Python 3.14+는 torch wheel이 없어 설치가 실패합니다.  
-> 자동 설치를 원한다면 `install.ps1` 을 실행하세요.
+> **Important**: Use **Python 3.12**. Python 3.14+ lacks torch wheels and will fail.
+> Use `install.ps1` for automatic setup.
 
 ```powershell
-# 1. 저장소 클론
+# 1. Clone the repo
 git clone https://github.com/HyunhoCho-dev/intellieye.git
 cd intellieye
 
-# 2. Python 3.12 가상환경 생성
+# 2. Create a Python 3.12 virtual environment
 py -3.12 -m venv .venv
 .\.venv\Scripts\activate
 
-# 3. pip / setuptools / wheel 업그레이드
+# 3. Upgrade pip / setuptools / wheel
 pip install --upgrade pip setuptools wheel
 
-# 4. torch 먼저 설치 (CPU 전용)
+# 4. Install torch first (CPU build)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir
 
-# 5. 나머지 패키지 설치
+# 5. Install remaining packages
 pip install -r requirements.txt --no-cache-dir --timeout 120
 
-# 6. 실행
+# 6. Run
 python intellieye.py
 ```
 
