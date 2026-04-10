@@ -212,14 +212,25 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "[OK] All packages installed" -ForegroundColor Green
 
-# ── 5. Create launcher script ─────────────────────────────────────────────────
+# ── 5. Verify venv Python version ────────────────────────────────────────────
+$venvVerOut = & $venvPython --version 2>&1
+if ($venvVerOut -notmatch "Python 3\.12") {
+    Write-Host "[ERROR] Virtual environment Python is not 3.12: $venvVerOut" -ForegroundColor Red
+    Write-Host "  Something went wrong during virtual environment creation." -ForegroundColor Red
+    Write-Host "  Please remove the .venv folder and re-run the installer:" -ForegroundColor Cyan
+    Write-Host "    Remove-Item -Recurse -Force `"$venvDir`"" -ForegroundColor Cyan
+    exit 1
+}
+Write-Host "[OK] Verified: virtual environment uses $venvVerOut" -ForegroundColor Green
+
+# ── 6. Create launcher script ─────────────────────────────────────────────────
 $runScript = Join-Path $installDir "run.ps1"
 $mainPy    = Join-Path $installDir "intellieye.py"
 # Use the venv Python directly so PATH is not required
-Set-Content -Path $runScript -Value "& `"$venvPython`" `"$mainPy`""
+Set-Content -Path $runScript -Value "& `"$venvPython`" `"$mainPy`" @args"
 Write-Host "[OK] Launcher created: $runScript" -ForegroundColor Green
 
-# ── 6. Register 'intellieye' function in PowerShell Profile ──────────────────
+# ── 7. Register 'intellieye' function in PowerShell Profile ──────────────────
 $profileContent = @"
 
 # IntelliEye Agent
@@ -247,7 +258,7 @@ if (-not (Select-String -Path $PROFILE -Pattern "IntelliEye Agent" -Quiet)) {
 
 Write-Host "[OK] 'intellieye' command registered in PowerShell Profile!" -ForegroundColor Green
 
-# ── 7. Done ───────────────────────────────────────────────────────────────────
+# ── 8. Done ───────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "========================================"
 Write-Host "  ✅ IntelliEye installation complete!" -ForegroundColor Green
