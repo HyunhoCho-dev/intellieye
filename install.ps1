@@ -130,7 +130,29 @@ if (-not (Test-Path $venvDir)) {
     }
     Write-Host "[OK] Virtual environment created: $venvDir" -ForegroundColor Green
 } else {
-    Write-Host "[OK] Reusing existing virtual environment: $venvDir" -ForegroundColor Green
+    # Validate that the existing venv actually uses Python 3.12 before reusing it.
+    # An old venv created under Python 3.14 (or any other version) will cause pip
+    # operations to fail or silently hang, which is the root cause of the frozen
+    # "Upgrading pip..." symptom reported by users.
+    $existingPy  = Join-Path $venvDir "Scripts\python.exe"
+    $existingVer = if (Test-Path $existingPy) { (& $existingPy --version 2>&1) } else { "" }
+    if ($existingVer -notmatch "Python 3\.12") {
+        if ($existingVer) {
+            Write-Host "[WARN] Existing virtual environment uses $existingVer (not 3.12)." -ForegroundColor Yellow
+        } else {
+            Write-Host "[WARN] Existing virtual environment appears broken (no Python executable found)." -ForegroundColor Yellow
+        }
+        Write-Host "  Recreating with Python 3.12..." -ForegroundColor Cyan
+        Remove-Item -Recurse -Force $venvDir
+        & $pyExe @pyArgs -m venv $venvDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[ERROR] Failed to create virtual environment." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "[OK] New Python 3.12 virtual environment created: $venvDir" -ForegroundColor Green
+    } else {
+        Write-Host "[OK] Reusing existing Python 3.12 virtual environment: $venvDir" -ForegroundColor Green
+    }
 }
 
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
@@ -165,11 +187,19 @@ Write-Host "[OK] Source files downloaded" -ForegroundColor Green
 Write-Host ""
 Write-Host "Installing packages (this may take a while)..." -ForegroundColor Cyan
 
-# Upgrade pip / setuptools / wheel first
+# Ensure Python subprocess output is not buffered so progress appears in real time
+$env:PYTHONUNBUFFERED = "1"
+
+# Upgrade pip / setuptools / wheel first.
+# Use -v so pip prints each step ("Collecting pip", "Downloading …", "Installing …")
+# which prevents the terminal from appearing frozen during network lookups.
 Write-Host "  Upgrading pip / setuptools / wheel..."
-& $venvPython -m pip install --upgrade pip setuptools wheel
+Write-Host "  (Connecting to PyPI — this may take up to 2 minutes, please wait...)" -ForegroundColor DarkGray
+& $venvPython -m pip install --upgrade pip setuptools wheel `
+    -v --no-cache-dir --timeout 60 --progress-bar on
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  [WARNING] pip upgrade failed. Continuing anyway." -ForegroundColor Yellow
+    Write-Host "  [WARNING] pip upgrade failed (exit $LASTEXITCODE). Continuing anyway." -ForegroundColor Yellow
+    Write-Host "  (If this keeps failing, check your network connection or proxy settings.)" -ForegroundColor DarkGray
 }
 
 # Install torch + torchvision + torchaudio first (CPU build)
@@ -230,19 +260,33 @@ $mainPy    = Join-Path $installDir "intellieye.py"
 Set-Content -Path $runScript -Value "& `"$venvPython`" `"$mainPy`" @args"
 Write-Host "[OK] Launcher created: $runScript" -ForegroundColor Green
 
-# ── 7. Register 'intellieye' function in PowerShell Profile ──────────────────
+# ── 7. Register 'intellieye' command ─────────────────────────────────────────
+# Strategy A: create intellieye.cmd in the WindowsApps folder, which is already
+# on the user PATH in Windows 10/11.  This lets users type just `intellieye`
+# in PowerShell, CMD, or Windows Terminal without any profile edits.
+$windowsApps = Join-Path $HOME "AppData\Local\Microsoft\WindowsApps"
+$cmdLauncher = Join-Path $windowsApps "intellieye.cmd"
+if (Test-Path $windowsApps) {
+    # CMD batch file — %* passes all extra arguments through to the Python script.
+    # Use $venvPython and $mainPy (already resolved above) so the path stays consistent
+    # with the rest of the installer rather than repeating the path construction.
+    $cmdContent = "@echo off`r`n`"$venvPython`" `"$mainPy`" %*`r`n"
+    [System.IO.File]::WriteAllText($cmdLauncher, $cmdContent, [System.Text.Encoding]::ASCII)
+    Write-Host "[OK] 'intellieye' command installed → $cmdLauncher" -ForegroundColor Green
+    Write-Host "     Open a new PowerShell window and type: intellieye" -ForegroundColor Cyan
+} else {
+    Write-Host "[INFO] WindowsApps folder not found — skipping .cmd launcher." -ForegroundColor DarkGray
+}
+
+# Strategy B: also add a PowerShell profile function as a fallback so the
+# command works even in restricted environments where WindowsApps is missing.
 $profileContent = @"
 
 # IntelliEye Agent
 function intellieye {
-    param([string]`$Command)
     `$venvPy = "$venvPython"
     if (-not (Test-Path `$venvPy)) { Write-Host "IntelliEye virtual environment not found. Please re-run the installer." -ForegroundColor Red; return }
-    if (`$Command -eq "update") {
-        & `$venvPy "$mainPy" --update
-    } else {
-        & `$venvPy "$mainPy" `$Command
-    }
+    & `$venvPy "$mainPy" @args
 }
 "@
 
@@ -256,7 +300,7 @@ if (-not (Select-String -Path $PROFILE -Pattern "IntelliEye Agent" -Quiet)) {
     Add-Content -Path $PROFILE -Value $profileContent
 }
 
-Write-Host "[OK] 'intellieye' command registered in PowerShell Profile!" -ForegroundColor Green
+Write-Host "[OK] 'intellieye' command registered in PowerShell Profile (fallback)." -ForegroundColor Green
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -266,11 +310,18 @@ Write-Host "========================================"
 Write-Host ""
 Write-Host "Usage:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  intellieye          → start the agent" -ForegroundColor Yellow
+Write-Host "  1. Open a NEW PowerShell window (important!)" -ForegroundColor Yellow
+Write-Host "  2. Type:" -ForegroundColor Yellow
+Write-Host "       intellieye" -ForegroundColor White
+Write-Host ""
+Write-Host "     That is all — 'intellieye' is now a registered command." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Other commands:" -ForegroundColor Cyan
 Write-Host "  intellieye update   → update to the latest version" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Or run directly:" -ForegroundColor Cyan
+Write-Host "Or run directly with:" -ForegroundColor Cyan
 Write-Host "  powershell `"$runScript`"" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "NOTE: Open a new PowerShell window to activate the 'intellieye' command." -ForegroundColor Cyan
+Write-Host "NOTE: The 'intellieye' command is immediately available in any new" -ForegroundColor Cyan
+Write-Host "      PowerShell window. You do NOT need to restart your computer." -ForegroundColor Cyan
 Write-Host ""

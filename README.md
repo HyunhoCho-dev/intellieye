@@ -31,7 +31,15 @@ The installer automatically locates Python 3.12 for you.
 > ⚠️ **Python 3.14+ is not supported.** PyTorch pre-built wheels are not available for it — installation will fail.
 > The installer handles this automatically by targeting Python 3.12, so you can run the one-liner as-is even if only Python 3.14 is installed.
 
-When installation completes, start IntelliEye with:
+When installation completes, start IntelliEye by opening a **new** PowerShell window and typing:
+
+```powershell
+intellieye
+```
+
+> 💡 The installer registers `intellieye` as a command automatically (via `.cmd` launcher + PowerShell profile). No PATH editing required — just open a new window.
+
+Or run it directly:
 
 ```powershell
 powershell "$HOME\intellieye\run.ps1"
@@ -40,6 +48,16 @@ powershell "$HOME\intellieye\run.ps1"
 ---
 
 ## 🎯 Usage
+
+### Launching IntelliEye
+
+After installation, open a **new** PowerShell window and type:
+
+```powershell
+intellieye
+```
+
+The `intellieye` command is registered automatically by the installer. No additional setup is needed — just close the installer window and open a fresh one.
 
 After launching IntelliEye you interact with the AI agent in the PowerShell window.
 
@@ -177,6 +195,30 @@ intellieye/
 ---
 
 ## 🩺 Troubleshooting
+
+### ⏳ Stuck at "Upgrading pip / setuptools / wheel..."
+
+**Symptom**: `install.ps1` appears frozen at the pip upgrade step (especially when reusing an existing virtual environment).
+
+**Root causes (any of these can cause silent waiting):**
+1. pip is connecting to PyPI to check for newer versions — network latency causes a pause with no output.
+2. The existing `.venv` was created by a different Python version (e.g. Python 3.14) and is incompatible with Python 3.12.
+3. Output buffering prevents pip progress from appearing in the terminal.
+
+**Updated installer behavior** (current version):
+
+- Sets `PYTHONUNBUFFERED=1` so Python output appears immediately.
+- Uses `pip install -v` so every step ("Collecting pip", "Downloading …", "Installing …") is printed.
+- Validates the existing `.venv` Python version **before** starting pip operations; if wrong, recreates the venv automatically.
+- Adds `--timeout 60 --no-cache-dir` to avoid silent hangs from stale cache reads or slow server responses.
+
+If the step still takes over 2 minutes with no output:
+
+```powershell
+# Remove the old venv and start fresh
+Remove-Item -Recurse -Force "$HOME\intellieye\.venv" -ErrorAction SilentlyContinue
+iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
+```
 
 ### ⏳ Stuck at "Installing torch..." (Python 3.14)
 
