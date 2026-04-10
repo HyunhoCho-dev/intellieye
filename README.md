@@ -4,7 +4,7 @@
 
 **Made by Hyunho Cho**
 
-[![Python 3.10~3.12](https://img.shields.io/badge/Python-3.10~3.12-blue?logo=python)](https://www.python.org/downloads/release/python-3121/)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?logo=python)](https://www.python.org/downloads/release/python-3121/)
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma%204-orange?logo=google)](https://deepmind.google/models/gemma/gemma-4/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
@@ -17,6 +17,19 @@ PowerShell 창을 열고 아래 명령어 **한 줄**만 실행하세요:
 ```powershell
 iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
 ```
+
+### 🔄 자동 Python 3.12 설치
+
+인스톨러가 **Python 3.12** 를 자동으로 탐색합니다.
+
+| 상황 | 동작 |
+|------|------|
+| Python 3.12 이미 설치됨 | 즉시 사용 (`py -3.12` 또는 PATH) |
+| Python 3.12 없음 + winget 있음 | winget으로 Python 3.12 자동 설치 후 진행 |
+| Python 3.14 만 있음 (winget 없음) | 오류 메시지 + 수동 설치 안내 |
+
+> ⚠️ **Python 3.14 이상은 지원되지 않습니다.** PyTorch 사전 빌드 wheel이 없어 설치가 실패합니다.  
+> 인스톨러가 Python 3.12 를 자동으로 준비하므로, Python 3.14만 있어도 한 줄 설치 명령을 그대로 실행하면 됩니다.
 
 설치가 완료되면 아래 명령으로 실행합니다:
 
@@ -83,15 +96,15 @@ IntelliEye를 실행하면 PowerShell 창에서 AI 에이전트와 대화할 수
 | 항목 | 최소 사양 | 권장 사양 |
 |------|---------|---------|
 | **OS** | Windows 10 이상 | Windows 11 |
-| **Python** | 3.10 이상 | **3.11 또는 3.12** (3.13 부분 지원, **3.14+ 미지원**) |
+| **Python** | **3.12** (자동 설치 지원) | **3.12** (**3.13 부분 지원, 3.14+ 미지원**) |
 | **RAM** | 8 GB | 16 GB |
 | **GPU VRAM** | 4 GB (E2B) | 6 GB (E4B) |
 | **저장 공간** | 10 GB | 20 GB |
 | **인터넷** | 최초 모델 다운로드 필요 | — |
 
-> ⚠️ **Python 3.10~3.12 필수**: PyTorch(torch)는 Python 3.13에서 부분 지원, **Python 3.14 이상은 미지원**입니다.  
-> Python 3.14에서 설치 스크립트 실행 시 torch 단계에서 멈추거나 실패합니다.  
-> [Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/) 후 재시도하세요.
+> ⚠️ **Python 3.12 필수**: PyTorch(torch)는 Python 3.13에서 부분 지원, **Python 3.14 이상은 미지원**입니다.  
+> 인스톨러가 자동으로 Python 3.12 를 탐색하고 없으면 **winget** 을 통해 자동 설치합니다.  
+> Python 3.14 만 설치된 시스템에서도 한 줄 설치 명령을 그대로 실행하면 됩니다.
 
 ---
 
@@ -156,25 +169,34 @@ intellieye/
 **원인**: PyTorch는 **Python 3.14 이상에 대한 사전 빌드(wheel) 패키지를 제공하지 않습니다**.  
 wheel이 없으면 pip가 소스에서 빌드를 시도하거나 오랜 시간 검색하다 실패합니다.
 
-**해결 방법**:
+**업데이트된 인스톨러 동작** (현재 버전):
+
+인스톨러가 Python 3.14 감지 시 **Python 3.12 를 자동으로 탐색·설치**합니다.
+
+1. `py -3.12` 명령으로 Python 3.12 존재 여부 확인
+2. 없으면 `winget` 으로 자동 설치 (`winget install Python.Python.3.12`)
+3. 설치 후 Python 3.12 가상환경(`.venv`) 생성
+4. 가상환경 안에서 torch 설치 진행
+
+**한 줄 설치 명령을 그대로 실행하면 됩니다:**
+
+```powershell
+iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
+```
+
+**자동 설치가 실패한 경우 수동 해결:**
 
 1. **Python 3.12 설치 (권장)**
    ```
    https://www.python.org/downloads/release/python-3121/
    ```
-   - 설치 시 "Add Python to PATH" 체크
+   - 설치 시 "Add Python to PATH" 또는 "py 런처" 옵션 체크
    - PowerShell 재시작 후 `install.ps1` 다시 실행
 
-2. **이미 Python 3.12가 있는 경우 (`py` 런처 사용)**
+2. **이미 Python 3.12가 있는 경우 확인**
    ```powershell
-   py -3.12 --version        # 3.12 확인
-   py -3.12 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-   ```
-
-3. **현재 Python 버전 확인**
-   ```powershell
-   python --version
-   py --list
+   py -3.12 --version   # 3.12 확인
+   py --list            # 설치된 모든 버전 목록
    ```
 
 ---
@@ -207,8 +229,9 @@ pip install -U torch transformers accelerate
 
 **해결 방법 4 — Python 버전 확인**
 
-Python 3.14+는 현재 지원되지 않습니다. Python 3.13에서는 torch 설치가 실패하거나 오래 걸릴 수 있습니다.  
-**Python 3.10~3.12 사용을 권장합니다.** [Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/)
+Python 3.14+는 현재 지원되지 않습니다. **Python 3.12 사용을 권장합니다.**  
+인스톨러를 다시 실행하면 Python 3.12 자동 설치를 시도합니다.  
+[Python 3.12 다운로드](https://www.python.org/downloads/release/python-3121/)
 
 ```powershell
 python --version
@@ -245,23 +268,28 @@ python intellieye.py doctor
 
 ## 🔧 수동 설치
 
-> **주의**: Python 3.10~3.12 를 사용하세요. Python 3.14+는 torch wheel이 없어 설치가 실패합니다.
+> **주의**: **Python 3.12** 를 사용하세요. Python 3.14+는 torch wheel이 없어 설치가 실패합니다.  
+> 자동 설치를 원한다면 `install.ps1` 을 실행하세요.
 
 ```powershell
 # 1. 저장소 클론
 git clone https://github.com/HyunhoCho-dev/intellieye.git
 cd intellieye
 
-# 2. pip 업그레이드
-pip install --upgrade pip
+# 2. Python 3.12 가상환경 생성
+py -3.12 -m venv .venv
+.\.venv\Scripts\activate
 
-# 3. torch 먼저 설치 (CPU 전용)
+# 3. pip / setuptools / wheel 업그레이드
+pip install --upgrade pip setuptools wheel
+
+# 4. torch 먼저 설치 (CPU 전용)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir
 
-# 4. 나머지 패키지 설치
+# 5. 나머지 패키지 설치
 pip install -r requirements.txt --no-cache-dir --timeout 120
 
-# 5. 실행
+# 6. 실행
 python intellieye.py
 ```
 
