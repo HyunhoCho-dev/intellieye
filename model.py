@@ -1,6 +1,6 @@
 """
 model.py — IntelliEye
-Gemma 4 E4B / E2B 모델 래퍼
+Gemma 4 E4B / E2B model wrapper
 Made by Hyunho Cho
 """
 
@@ -13,23 +13,23 @@ import sys
 import torch
 from PIL import Image
 
-# torchvision 임포트 확인 — 없으면 자동 설치 시도
+# Check torchvision import — auto-install if missing
 try:
     import torchvision  # noqa: F401
 except ImportError:
-    print("[IntelliEye] torchvision이 설치되어 있지 않습니다. 자동으로 설치를 시도합니다...")
+    print("[IntelliEye] torchvision is not installed. Attempting automatic installation...", flush=True)
     try:
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "torchvision", "-q"]
         )
         import torchvision  # noqa: F401
-        print("[IntelliEye] torchvision 설치 완료!")
+        print("[IntelliEye] torchvision installed successfully!")
     except Exception as e:
         print(
-            f"[IntelliEye] torchvision 자동 설치 실패: {e}\n"
-            "수동으로 설치해 주세요:\n"
+            f"[IntelliEye] torchvision auto-install failed: {e}\n"
+            "Please install it manually:\n"
             "  pip install torchvision\n"
-            "또는:\n"
+            "Or:\n"
             "  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu"
         )
         sys.exit(1)
@@ -41,25 +41,25 @@ MODEL_IDS = {
     "E2B": "google/gemma-4-E2B-it",
 }
 
-SYSTEM_PROMPT = """당신은 노트북 화면을 실시간으로 보면서 사용자의 목표를 달성하는 AI 에이전트입니다.
-화면 이미지를 분석하고, 목표를 달성하기 위한 다음 행동 하나를 아래 JSON 형식 중 하나로만 반환하세요.
-다른 텍스트는 절대 포함하지 마세요. JSON만 반환하세요.
+SYSTEM_PROMPT = """You are an AI agent that watches the laptop screen in real time and accomplishes the user's goal.
+Analyze the screen image and return exactly one next action in one of the JSON formats below.
+Do not include any other text. Return JSON only.
 
-사용 가능한 액션:
-{"action":"click","x":int,"y":int,"description":"설명"}
-{"action":"type","text":"입력할 텍스트","description":"설명"}
-{"action":"hotkey","keys":["ctrl","c"],"description":"설명"}
-{"action":"scroll","direction":"up 또는 down","amount":int,"description":"설명"}
-{"action":"screenshot","description":"화면 분석만 필요할 때"}
-{"action":"done","description":"목표 달성 완료 시"}
+Available actions:
+{"action":"click","x":int,"y":int,"description":"description"}
+{"action":"type","text":"text to type","description":"description"}
+{"action":"hotkey","keys":["ctrl","c"],"description":"description"}
+{"action":"scroll","direction":"up or down","amount":int,"description":"description"}
+{"action":"screenshot","description":"use when only screen analysis is needed"}
+{"action":"done","description":"use when the goal has been achieved"}
 
-x, y 좌표는 화면 픽셀 단위입니다."""
+x, y coordinates are in screen pixels."""
 
 
 def _detect_device() -> str:
-    """사용 가능한 최적 디바이스를 반환합니다 (cuda > mps > cpu).
+    """Return the best available device (cuda > mps > cpu).
 
-    환경 변수 INTELLIEYE_DEVICE로 수동 지정 가능합니다.
+    Can be overridden with the INTELLIEYE_DEVICE environment variable.
     """
     env_device = os.environ.get("INTELLIEYE_DEVICE", "").strip().lower()
     if env_device in ("cuda", "mps", "cpu"):
@@ -73,7 +73,7 @@ def _detect_device() -> str:
 
 
 def _has_meta_params(model) -> bool:
-    """모델 파라미터 중 meta 디바이스에 있는 것이 있으면 True를 반환합니다."""
+    """Return True if any model parameter is on the meta device."""
     for param in model.parameters():
         if param.device.type == "meta":
             return True
@@ -81,15 +81,15 @@ def _has_meta_params(model) -> bool:
 
 
 def _load_model(model_id: str, device: str, safe_load: bool):
-    """디바이스와 안전 로드 옵션에 따라 모델을 로드합니다.
+    """Load the model according to device and safe-load options.
 
     Args:
-        model_id: HuggingFace 모델 ID
-        device: "cuda", "mps", 또는 "cpu"
-        safe_load: True이면 meta 텐서를 방지하는 안전 옵션으로 로드
+        model_id: HuggingFace model ID
+        device: "cuda", "mps", or "cpu"
+        safe_load: When True, load with options that prevent meta tensors
 
     Returns:
-        로드된 모델
+        Loaded model
     """
     if device == "cuda" and not safe_load:
         return AutoModelForCausalLM.from_pretrained(
@@ -98,8 +98,8 @@ def _load_model(model_id: str, device: str, safe_load: bool):
             torch_dtype=torch.bfloat16,
         )
 
-    # CPU / MPS 또는 safe_load 모드: meta 텐서를 방지하기 위해
-    # device_map=None, low_cpu_mem_usage=False, float32 사용
+    # CPU / MPS or safe_load mode: avoid meta tensors by using
+    # device_map=None, low_cpu_mem_usage=False, float32
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         device_map=None,
@@ -111,38 +111,40 @@ def _load_model(model_id: str, device: str, safe_load: bool):
 
 
 class GemmaAgent:
-    """Gemma 4 E4B 또는 E2B 모델을 로드하고 화면 기반 액션을 결정합니다."""
+    """Load a Gemma 4 E4B or E2B model and decide screen-based actions."""
 
     def __init__(self, model_name: str):
         """
         Args:
-            model_name: "E4B" 또는 "E2B"
+            model_name: "E4B" or "E2B"
         """
         model_id = MODEL_IDS.get(model_name.upper(), MODEL_IDS["E4B"])
-        print(f"  모델 로딩 중: {model_id}")
-        print("  (처음 실행 시 모델 다운로드에 시간이 걸릴 수 있습니다...)")
+        print(f"  Loading model: {model_id}", flush=True)
+        print("  (First run: downloading model weights — this may take several minutes...)", flush=True)
 
         device = _detect_device()
         safe_load = os.environ.get("INTELLIEYE_SAFE_LOAD", "").strip() == "1"
-        print(f"  디바이스: {device}" + (" (안전 로드 모드)" if safe_load or device != "cuda" else ""))
+        print(f"  Device: {device}" + (" (safe-load mode)" if safe_load or device != "cuda" else ""), flush=True)
 
+        print("  Loading processor...", flush=True)
         self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
 
-        # 패드 토큰이 없으면 EOS 토큰으로 설정
+        # Set pad token to EOS if missing
         if self.processor.tokenizer.pad_token_id is None:
             self.processor.tokenizer.pad_token_id = self.processor.tokenizer.eos_token_id
 
+        print("  Loading model weights (this may take a while)...", flush=True)
         self.model = _load_model(model_id, device, safe_load)
 
-        # meta 텐서가 감지되면 안전 로드 모드로 재시도
+        # If meta tensors are detected, retry with safe-load mode
         if _has_meta_params(self.model):
             print(
-                "  ⚠️  meta 텐서가 감지되었습니다. 안전 로드 모드로 재시도합니다..."
+                "  ⚠️  Meta tensors detected. Retrying with safe-load mode...", flush=True
             )
             device = "cpu"
             self.model = _load_model(model_id, device, safe_load=True)
 
-        # generation_config에 패드/EOS 토큰 ID 설정
+        # Set pad/EOS token IDs in generation_config
         eos_id = self.processor.tokenizer.eos_token_id
         if hasattr(self.model, "generation_config"):
             if self.model.generation_config.pad_token_id is None:
@@ -152,7 +154,7 @@ class GemmaAgent:
 
         self.device = device
         self.model_name = model_name
-        print("  모델 로딩 완료!")
+        print("  ✅ Model loaded successfully!", flush=True)
 
     def decide_action(
         self,
@@ -161,25 +163,25 @@ class GemmaAgent:
         history: list,
     ) -> dict:
         """
-        현재 화면과 목표를 바탕으로 다음 액션을 결정합니다.
+        Decide the next action based on the current screen and goal.
 
         Args:
-            screen_image: 현재 화면의 PIL Image
-            goal: 사용자가 요청한 목표 문자열
-            history: 이전 액션 히스토리 (list of str)
+            screen_image: PIL Image of the current screen
+            goal: Goal string requested by the user
+            history: List of previous action strings
 
         Returns:
-            액션 딕셔너리
+            Action dictionary
         """
         history_text = ""
         if history:
-            history_text = "\n이전 수행 액션:\n" + "\n".join(
+            history_text = "\nPrevious actions:\n" + "\n".join(
                 f"  - {h}" for h in history[-5:]
             )
 
         user_text = (
-            f"목표: {goal}{history_text}\n\n"
-            "현재 화면을 분석하고 다음에 수행할 액션을 JSON으로 반환하세요."
+            f"Goal: {goal}{history_text}\n\n"
+            "Analyze the current screen and return the next action as JSON."
         )
 
         messages = [
@@ -207,7 +209,7 @@ class GemmaAgent:
             do_sample=False,
         )
 
-        # 입력 토큰 이후의 생성 부분만 디코딩
+        # Decode only the generated tokens (after input)
         input_ids = inputs["input_ids"] if isinstance(inputs, dict) else inputs
         input_len = input_ids.shape[1]
         generated_ids = outputs[0][input_len:]
@@ -216,11 +218,11 @@ class GemmaAgent:
         return self._parse_json(response_text)
 
     def _parse_json(self, text: str) -> dict:
-        """응답 텍스트에서 JSON 딕셔너리를 추출합니다."""
-        # 코드 블록 제거
+        """Extract a JSON dictionary from the response text."""
+        # Remove code block markers
         text = re.sub(r"```(?:json)?", "", text).strip()
 
-        # JSON 객체 찾기
+        # Find JSON object
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             try:
@@ -228,5 +230,5 @@ class GemmaAgent:
             except json.JSONDecodeError:
                 pass
 
-        # 파싱 실패 시 screenshot 액션 반환
-        return {"action": "screenshot", "description": f"파싱 실패 (원문: {text[:100]})"}
+        # Fall back to screenshot action on parse failure
+        return {"action": "screenshot", "description": f"Parse failed (raw: {text[:100]})"}

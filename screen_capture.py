@@ -1,6 +1,6 @@
 """
 screen_capture.py — IntelliEye
-화면 캡처 및 base64 인코딩 유틸리티
+Screen capture and base64 encoding utilities
 Made by Hyunho Cho
 """
 
@@ -18,10 +18,10 @@ from PIL import Image, ImageGrab
 
 
 def capture_screen() -> Image.Image:
-    """현재 전체 화면을 캡처하여 PIL Image로 반환합니다."""
+    """Capture the full screen and return it as a PIL Image."""
     if _USE_MSS:
         with mss.mss() as sct:
-            monitor = sct.monitors[0]  # 전체 가상 화면
+            monitor = sct.monitors[0]  # full virtual screen
             sct_img = sct.grab(monitor)
             img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
             return img
@@ -30,7 +30,7 @@ def capture_screen() -> Image.Image:
 
 
 def image_to_base64(img: Image.Image) -> str:
-    """PIL Image를 PNG base64 문자열로 변환하여 모델 입력에 사용합니다."""
+    """Convert a PIL Image to a PNG base64 string for use as model input."""
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
