@@ -9,14 +9,30 @@ import subprocess
 import sys
 import urllib.request
 
-# Python version compatibility notice (3.13+ is experimental)
-if sys.version_info >= (3, 13):
+# Python version compatibility check
+_ver = sys.version_info
+if _ver >= (3, 14):
     print(
-        f"ℹ️  Python {sys.version_info.major}.{sys.version_info.minor} detected.\n"
-        "   IntelliEye supports Python 3.10+ (3.13+ is experimental).\n"
-        "   Some torch/transformers builds may not yet support this version.\n"
-        "   If you encounter issues, try: pip install -U torch transformers accelerate\n"
-        "   For best results, use Python 3.12.\n"
+        f"⚠️  Python {_ver.major}.{_ver.minor} detected — NOT SUPPORTED.\n"
+        "   PyTorch (torch) has no pre-built wheels for Python 3.14+.\n"
+        "   Installation will fail or hang at the torch step.\n"
+        "\n"
+        "   ► Please use Python 3.12 instead.\n"
+        "\n"
+        "   Quick fix (Windows 11 PowerShell):\n"
+        "     winget install -e --id Python.Python.3.12\n"
+        "     iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content\n"
+        "\n"
+        "   The installer will detect Python 3.12 automatically and create a\n"
+        "   compatible virtual environment for you.\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+elif _ver >= (3, 13):
+    print(
+        f"ℹ️  Python {_ver.major}.{_ver.minor} detected (experimental).\n"
+        "   IntelliEye is tested on Python 3.12. Some packages may behave\n"
+        "   differently on 3.13. If you encounter issues, use Python 3.12.\n"
     )
 
 print("Loading IntelliEye modules...", flush=True)
