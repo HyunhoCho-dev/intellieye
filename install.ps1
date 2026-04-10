@@ -119,7 +119,30 @@ if (-not (Test-Path $installDir)) {
 Write-Host "[OK] Install directory: $installDir" -ForegroundColor Green
 
 # ── 2a. Create virtual environment (venv) ────────────────────────────────────
-$venvDir = Join-Path $installDir ".venv"
+$venvDir    = Join-Path $installDir ".venv"
+$venvPyTest = Join-Path $venvDir "Scripts\python.exe"
+
+# If an existing venv is present, verify it was created with Python 3.12.
+# A venv built by Python 3.14 (or any other version) will fail at the pip
+# upgrade step in hard-to-diagnose ways — always recreate it if the version
+# is wrong or the executable is missing.
+if (Test-Path $venvDir) {
+    if (Test-Path $venvPyTest) {
+        $existingVer = & $venvPyTest --version 2>&1
+        if ($existingVer -match "Python 3\.12") {
+            Write-Host "[OK] Reusing existing Python 3.12 virtual environment: $venvDir" -ForegroundColor Green
+        } else {
+            Write-Host "[WARN] Existing virtual environment uses $existingVer (requires 3.12)." -ForegroundColor Yellow
+            Write-Host "       Removing and recreating with Python 3.12..." -ForegroundColor Yellow
+            Remove-Item -Recurse -Force $venvDir
+        }
+    } else {
+        Write-Host "[WARN] Virtual environment exists but Python executable is missing." -ForegroundColor Yellow
+        Write-Host "       Removing and recreating..." -ForegroundColor Yellow
+        Remove-Item -Recurse -Force $venvDir
+    }
+}
+
 if (-not (Test-Path $venvDir)) {
     Write-Host ""
     Write-Host "Creating Python 3.12 virtual environment..." -ForegroundColor Cyan
@@ -129,8 +152,6 @@ if (-not (Test-Path $venvDir)) {
         exit 1
     }
     Write-Host "[OK] Virtual environment created: $venvDir" -ForegroundColor Green
-} else {
-    Write-Host "[OK] Reusing existing virtual environment: $venvDir" -ForegroundColor Green
 }
 
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
@@ -166,8 +187,11 @@ Write-Host ""
 Write-Host "Installing packages (this may take a while)..." -ForegroundColor Cyan
 
 # Upgrade pip / setuptools / wheel first
+# Use -u (unbuffered) so every line appears immediately — prevents the
+# terminal from appearing frozen during the download/install phase.
 Write-Host "  Upgrading pip / setuptools / wheel..."
-& $venvPython -m pip install --upgrade pip setuptools wheel
+Write-Host "  (may take 30-60 seconds — progress appears below in real time)" -ForegroundColor DarkGray
+& $venvPython -u -m pip install --upgrade pip setuptools wheel --no-cache-dir
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  [WARNING] pip upgrade failed. Continuing anyway." -ForegroundColor Yellow
 }
@@ -179,7 +203,7 @@ Write-Host "  ~500 MB-1 GB download — expect 5-20 minutes depending on your co
 Write-Host "  Progress will appear below in real time." -ForegroundColor DarkGray
 Write-Host ""
 $torchStart = Get-Date
-& $venvPython -m pip install `
+& $venvPython -u -m pip install `
     torch torchvision torchaudio `
     --index-url https://download.pytorch.org/whl/cpu `
     --no-cache-dir `
@@ -205,7 +229,7 @@ Write-Host "  [OK] torch installed ($torchElapsed seconds)" -ForegroundColor Gre
 $reqFile = Join-Path $installDir "requirements.txt"
 Write-Host ""
 Write-Host "  Installing remaining packages..."
-& $venvPython -m pip install -r $reqFile --no-cache-dir --timeout 120
+& $venvPython -u -m pip install -r $reqFile --no-cache-dir --timeout 120
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Package installation failed." -ForegroundColor Red
     exit 1
@@ -230,19 +254,20 @@ $mainPy    = Join-Path $installDir "intellieye.py"
 Set-Content -Path $runScript -Value "& `"$venvPython`" `"$mainPy`" @args"
 Write-Host "[OK] Launcher created: $runScript" -ForegroundColor Green
 
-# ── 7. Register 'intellieye' function in PowerShell Profile ──────────────────
+# ── 7. Register 'intellieye' command ─────────────────────────────────────────
+
+# --- 7a. PowerShell profile function -----------------------------------------
+# Uses @args so every argument (e.g. "doctor", "--update") passes through.
 $profileContent = @"
 
 # IntelliEye Agent
 function intellieye {
-    param([string]`$Command)
     `$venvPy = "$venvPython"
-    if (-not (Test-Path `$venvPy)) { Write-Host "IntelliEye virtual environment not found. Please re-run the installer." -ForegroundColor Red; return }
-    if (`$Command -eq "update") {
-        & `$venvPy "$mainPy" --update
-    } else {
-        & `$venvPy "$mainPy" `$Command
+    if (-not (Test-Path `$venvPy)) {
+        Write-Host "IntelliEye virtual environment not found. Please re-run the installer." -ForegroundColor Red
+        return
     }
+    & `$venvPy "$mainPy" @args
 }
 "@
 
@@ -256,7 +281,24 @@ if (-not (Select-String -Path $PROFILE -Pattern "IntelliEye Agent" -Quiet)) {
     Add-Content -Path $PROFILE -Value $profileContent
 }
 
-Write-Host "[OK] 'intellieye' command registered in PowerShell Profile!" -ForegroundColor Green
+Write-Host "[OK] 'intellieye' function registered in PowerShell Profile!" -ForegroundColor Green
+
+# --- 7b. .cmd launcher in WindowsApps (works in PowerShell AND cmd.exe) ------
+# %USERPROFILE%\AppData\Local\Microsoft\WindowsApps is on PATH by default on
+# Windows 10/11 so a .cmd file placed there is immediately executable.
+$winAppsDir = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps"
+if (Test-Path $winAppsDir) {
+    $cmdPath = Join-Path $winAppsDir "intellieye.cmd"
+    $cmdPython = Join-Path $installDir ".venv\Scripts\python.exe"
+    $cmdApp    = Join-Path $installDir "intellieye.py"
+    @"
+@echo off
+"$cmdPython" "$cmdApp" %*
+"@ | Set-Content -Path $cmdPath -Encoding ASCII
+    Write-Host "[OK] 'intellieye.cmd' launcher created in $winAppsDir" -ForegroundColor Green
+} else {
+    Write-Host "[INFO] WindowsApps directory not found — skipping .cmd launcher." -ForegroundColor DarkGray
+}
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
 Write-Host ""

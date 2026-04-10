@@ -34,8 +34,11 @@ The installer automatically locates Python 3.12 for you.
 When installation completes, start IntelliEye with:
 
 ```powershell
-powershell "$HOME\intellieye\run.ps1"
+intellieye
 ```
+
+> **Open a new PowerShell window** after install so the `intellieye` command is active.
+> Alternatively you can always run it with: `powershell "$HOME\intellieye\run.ps1"`
 
 ---
 
@@ -177,6 +180,23 @@ intellieye/
 ---
 
 ## 🩺 Troubleshooting
+
+### ⏳ Installer appears frozen at "Upgrading pip / setuptools / wheel..."
+
+**Symptom**: The installer pauses at the pip upgrade step with no visible output.
+
+**Cause**: Python's stdout is line-buffered inside a subprocess by default. The upgrade is running — output just isn't flushing until it finishes.
+
+**Fix (already applied in the current installer)**: The installer uses Python's `-u` flag (unbuffered) when calling pip, so every progress line appears immediately.
+
+If you have an older install showing this symptom, clear it and reinstall:
+
+```powershell
+Remove-Item -Recurse -Force "$HOME\intellieye" -ErrorAction SilentlyContinue
+iex (iwr -useb https://raw.githubusercontent.com/HyunhoCho-dev/intellieye/main/install.ps1).Content
+```
+
+---
 
 ### ⏳ Stuck at "Installing torch..." (Python 3.14)
 
